@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {{head.html}}
+  <style>
+    {{styles.css}}
+  </style>
+</head>
+<body>
+  {{body.html}}
+  <script>
+    {{app.js}}
+  </script>
+</body>
+</html>

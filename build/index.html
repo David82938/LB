@@ -1,0 +1,2212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logic Builder 1.1 (latest)</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48dGV4dCB4PSc1MCUnIHk9JzU1JScgZm9udC1mYW1pbHk9J3NhbnMtc2VyaWYnIGZvbnQtd2VpZ2h0PSdib2xkJyBmb250LXNpemU9JzYwJyBmaWxsPScjRkYwMDAwJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJyBkb21pbmFudC1iYXNlbGluZT0nbWlkZGxlJz5MQjwvdGV4dD48L3N2Zz4=">
+  <style>
+    /* ============================================================ RESET */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: var(--background);
+      color: var(--foreground);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    button { cursor: pointer; border: none; background: none; color: inherit; font: inherit; }
+    input { font: inherit; }
+    svg { display: block; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: oklch(0.32 0.005 270); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: oklch(0.4 0.005 270); }
+    
+    /* ============================================================ THEME */
+    :root {
+      --radius: 0.625rem;
+      --background: oklch(0.16 0.005 270);
+      --foreground: oklch(0.96 0 0);
+      --card: oklch(0.205 0.008 270);
+      --card-foreground: oklch(0.96 0 0);
+      --popover: oklch(0.205 0.008 270);
+      --popover-foreground: oklch(0.96 0 0);
+      --primary: oklch(0.577 0.245 27.325);
+      --primary-foreground: oklch(0.985 0 0);
+      --secondary: oklch(0.269 0.008 270);
+      --secondary-foreground: oklch(0.96 0 0);
+      --muted: oklch(0.269 0.008 270);
+      --muted-foreground: oklch(0.708 0 0);
+      --accent: oklch(0.32 0.05 27);
+      --accent-foreground: oklch(0.96 0 0);
+      --destructive: oklch(0.577 0.245 27.325);
+      --destructive-foreground: oklch(0.985 0 0);
+      --border: oklch(1 0 0 / 8%);
+      --input: oklch(1 0 0 / 12%);
+      --ring: oklch(0.577 0.245 27.325);
+      --sidebar: oklch(0.18 0.008 270);
+      --sidebar-foreground: oklch(0.96 0 0);
+      --sidebar-border: oklch(1 0 0 / 8%);
+      --lb-canvas: oklch(0.135 0.004 270);
+      --lb-canvas-grid: oklch(1 0 0 / 4%);
+      --lb-node-bg: oklch(0.22 0.01 270);
+      --lb-node-border: oklch(0.32 0.02 270);
+      --lb-pin: oklch(0.4 0.005 270);
+      --lb-pin-active: oklch(0.577 0.245 27.325);
+      --lb-wire-cold: oklch(0.4 0.005 270);
+      --lb-wire-hot: oklch(0.577 0.245 27.325);
+    }
+    
+    /* ============================================================ APP LAYOUT */
+    #app { height: 100vh; width: 100vw; display: flex; flex-direction: column; background: var(--background); color: var(--foreground); overflow: hidden; }
+    
+    /* ============================================================ HEADER */
+    #header {
+      height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px; border-bottom: 1px solid var(--border); background: var(--sidebar);
+    }
+    .header-left { display: flex; align-items: center; gap: 8px; }
+    .logo {
+      height: 20px; width: 20px; border-radius: 2px; background: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--primary-foreground); font-size: 11px; font-weight: bold;
+    }
+    .header-left h1 { font-size: 14px; font-weight: 600; letter-spacing: 0.025em; }
+    .subtitle { font-size: 10px; color: var(--muted-foreground); margin-left: 4px; }
+    .header-right { display: flex; align-items: center; gap: 12px; font-size: 10px; color: var(--muted-foreground); }
+    .legend { display: flex; align-items: center; gap: 12px; }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-swatch { display: inline-block; height: 8px; width: 24px; border-radius: 4px; }
+    .legend-powered { background: var(--lb-wire-hot); box-shadow: 0 0 4px var(--lb-pin-active); }
+    .legend-idle { background: var(--lb-wire-cold); }
+    .editing-indicator { display: flex; align-items: center; gap: 6px; color: var(--primary); }
+    .editing-dot { display: inline-block; height: 8px; width: 8px; border-radius: 50%; background: var(--primary); animation: pulse 1.5s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .icon-btn {
+      height: 32px; width: 32px; display: flex; align-items: center; justify-content: center;
+      border-radius: 6px; color: var(--muted-foreground); transition: all 0.15s;
+    }
+    .icon-btn:hover { color: var(--foreground); background: oklch(1 0 0 / 6%); }
+    
+    /* ============================================================ MAIN */
+    #main { display: flex; flex: 1; min-height: 0; }
+    
+    /* ============================================================ SIDEBAR */
+    #sidebar {
+      width: 256px; flex-shrink: 0; height: 100%; display: flex; flex-direction: column;
+      border-right: 1px solid var(--border); background: var(--sidebar);
+      position: relative; z-index: 20;
+    }
+    .sidebar-header {
+      padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px;
+    }
+    .sidebar-header h2 { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--foreground); }
+    .sidebar-header svg { color: var(--primary); }
+    .sidebar-list { flex: 1; overflow-y: auto; padding: 8px; }
+    .sidebar-list > * + * { margin-top: 4px; }
+    .sidebar-footer {
+      border-top: 1px solid var(--border); padding: 8px 12px; font-size: 10px; color: var(--muted-foreground);
+    }
+    
+    /* Sidebar item */
+    .sidebar-item {
+      position: relative; display: flex; align-items: center; gap: 8px;
+      border-radius: 6px; border: 1px solid transparent;
+      background: oklch(1 0 0 / 3%); padding: 6px 8px; transition: all 0.15s;
+      cursor: grab; user-select: none;
+    }
+    .sidebar-item:hover { background: oklch(1 0 0 / 6%); border-color: oklch(1 0 0 / 6%); }
+    .sidebar-item:active { cursor: grabbing; }
+    .sidebar-item.editing { cursor: text; }
+    .sidebar-item.being-edited { border-color: var(--primary); background: oklch(0.577 0.245 27.325 / 10%); }
+    .sidebar-item .grip { color: oklch(0.708 0 0 / 50%); flex-shrink: 0; }
+    .sidebar-item:hover .grip { color: var(--muted-foreground); }
+    .sidebar-item .block-icon { color: var(--primary); flex-shrink: 0; }
+    .sidebar-item-label {
+      flex: 1; min-width: 0; text-align: left; background: none; border: none; padding: 0; cursor: inherit;
+    }
+    .sidebar-item-label .name { font-size: 12px; font-weight: 600; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sidebar-item-label .desc { font-size: 10px; color: var(--muted-foreground); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sidebar-item-label .desc.editable { cursor: text; }
+    .sidebar-item-label .desc.editable:hover { color: oklch(0.96 0 0 / 90%); }
+    .sidebar-item-label .editing-badge { margin-left: 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary); }
+    .pin-badges { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+    .pin-badge { display: inline-flex; border-radius: 3px; padding: 2px 4px; font-size: 9px; }
+    .pin-badge-in { background: oklch(0.577 0.245 27.325 / 10%); color: var(--primary); }
+    .pin-badge-out { background: oklch(1 0 0 / 10%); color: var(--foreground); }
+    .sidebar-actions {
+      position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+      display: flex; align-items: center; gap: 2px; opacity: 0; transition: opacity 0.15s;
+      background: oklch(0.18 0.008 270 / 95%); backdrop-filter: blur(4px); border-radius: 4px; padding-left: 4px;
+    }
+    .sidebar-item:hover .sidebar-actions { opacity: 1; }
+    .action-btn { padding: 4px; border-radius: 4px; color: var(--muted-foreground); transition: all 0.15s; }
+    .action-btn:hover { background: oklch(0.577 0.245 27.325 / 10%); }
+    .action-btn.rename:hover { color: var(--primary); }
+    .action-btn.edit:hover { color: var(--primary); }
+    .action-btn.delete:hover { color: var(--destructive); background: oklch(0.577 0.245 27.325 / 10%); }
+    .sidebar-edit-inline { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+    .sidebar-input {
+      width: 100%; background: oklch(1 0 0 / 6%); border: 1px solid oklch(0.577 0.245 27.325 / 60%);
+      border-radius: 3px; padding: 2px 4px; font-size: 12px; color: var(--foreground); outline: none;
+    }
+    .sidebar-input.mono { font-family: monospace; font-size: 10px; }
+    .sidebar-input:focus { border-color: var(--primary); }
+    .sidebar-input.name-input { font-size: 12px; }
+    
+    /* ============================================================ CANVAS */
+    #canvasContainer { position: relative; flex: 1; min-width: 0; height: 100%; }
+    #viewport {
+      height: 100%; background-color: var(--lb-canvas); position: relative;
+    }
+    #viewport.scrollable { overflow: auto; }
+    #viewport.fixed { overflow: hidden; }
+    #viewport.drag-over { box-shadow: inset 0 0 0 2px oklch(0.577 0.245 27.325 / 40%); }
+    #selectionOverlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 25;
+      overflow: hidden;
+    }
+    #worldWrapper { position: relative; }
+    #world {
+      background-image:
+        linear-gradient(oklch(1 0 0 / 4%) 1px, transparent 1px),
+        linear-gradient(90deg, oklch(1 0 0 / 4%) 1px, transparent 1px);
+      background-size: 24px 24px;
+      position: absolute; top: 0; left: 0; transform-origin: 0 0;
+    }
+    #wireSvg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+    #wireSvg g { pointer-events: auto; }
+    #wireSvg g path.hit { cursor: pointer; }
+    
+    /* Empty state */
+    .empty-state {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      pointer-events: none; text-align: center; max-width: 28rem; padding: 24px; margin: 0 auto;
+    }
+    .empty-state .empty-title { font-size: 24px; font-weight: 600; color: oklch(0.96 0 0 / 40%); margin-bottom: 8px; }
+    .empty-state .empty-body { font-size: 14px; color: oklch(0.708 0 0 / 80%); line-height: 1.6; }
+    .empty-state .empty-body .hl { color: var(--primary); font-weight: 600; }
+    
+    /* Pending wire status */
+    .pending-status {
+      position: absolute; bottom: 8px; left: 8px; font-size: 10px;
+      color: oklch(0.708 0 0 / 60%); font-family: monospace; pointer-events: none;
+    }
+    /* Scroll hint */
+    .scroll-hint {
+      position: absolute; top: 8px; right: 8px; font-size: 10px;
+      color: oklch(0.708 0 0 / 60%); font-family: monospace; pointer-events: none;
+      background: oklch(0.16 0.005 270 / 60%); backdrop-filter: blur(4px);
+      padding: 2px 8px; border-radius: 3px; border: 1px solid oklch(1 0 0 / 4%);
+    }
+    /* Zoom controls */
+    .zoom-controls {
+      position: absolute; bottom: 8px; right: 8px; display: flex; align-items: center; gap: 4px;
+      background: oklch(0.16 0.005 270 / 80%); backdrop-filter: blur(4px);
+      border: 1px solid var(--border); border-radius: 6px; padding: 2px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .zoom-btn {
+      height: 28px; width: 28px; display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; color: oklch(0.96 0 0 / 70%); transition: all 0.15s;
+    }
+    .zoom-btn:hover { color: var(--foreground); background: oklch(1 0 0 / 6%); }
+    .zoom-label {
+      height: 28px; min-width: 48px; padding: 0 8px; display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; font-size: 10px; font-family: monospace; color: oklch(0.96 0 0 / 70%); transition: all 0.15s;
+    }
+    .zoom-label:hover { color: var(--foreground); background: oklch(1 0 0 / 6%); }
+    
+    /* ============================================================ NODE */
+    .node {
+      position: absolute; user-select: none;
+    }
+    .node.dragging-over-sidebar { opacity: 0.6; box-shadow: 0 0 0 2px var(--destructive); }
+    .node-body {
+      position: relative; border-radius: 8px; border: 1px solid var(--lb-node-border);
+      background: var(--lb-node-bg); box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .node-header {
+      display: flex; align-items: center; justify-content: space-between; padding: 0 10px;
+    }
+    .node-header .label {
+      font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: oklch(0.96 0 0 / 80%); font-size: 12px;
+    }
+    .node-header.terminal .label { font-size: 10px; }
+    .node-header .delete-btn {
+      color: oklch(0.96 0 0 / 40%); transition: color 0.15s; padding: 0; display: flex;
+    }
+    .node-header .delete-btn:hover { color: oklch(0.96 0 0 / 80%); }
+    
+    /* Pin rows (inside node body for non-terminal nodes) */
+    .pin-list {
+      position: absolute; top: 0; display: flex; flex-direction: column; height: 100%;
+    }
+    .pin-list.left { left: 0; }
+    .pin-list.right { right: 0; }
+    .pin-row { display: flex; align-items: center; gap: 8px; padding: 0 8px; height: 28px; }
+    .pin-row .pin-name {
+      font-size: 10px; text-transform: uppercase; font-family: monospace; letter-spacing: 0.025em; color: oklch(0.96 0 0 / 70%);
+    }
+    .pin-row .pin-name.powered { color: var(--primary); }
+    
+    /* Pin dots (on the edges of the node) */
+    .pin-dot {
+      position: absolute; border-radius: 50%; border: 2px solid var(--background);
+      cursor: crosshair; transition: all 0.15s;
+      width: 14px; height: 14px;
+    }
+    .pin-dot.powered { box-shadow: 0 0 8px 0 oklch(0.577 0.245 27.325 / 0.7); }
+    
+    /* Terminal body */
+    .terminal-body { padding: 0 8px 4px; }
+    .toggle-btn {
+      width: 100%; height: 28px; border-radius: 6px; border: 1px solid var(--border);
+      background: oklch(1 0 0 / 4%); color: oklch(0.96 0 0 / 50%);
+      display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;
+      letter-spacing: 0.05em; transition: all 0.15s;
+    }
+    .toggle-btn.on {
+      border-color: var(--primary); background: oklch(0.577 0.245 27.325 / 20%); color: var(--primary);
+    }
+    .lamp-body {
+      width: 100%; height: 28px; border-radius: 6px; border: 1px solid var(--border);
+      background: oklch(1 0 0 / 4%); display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+    }
+    .lamp-body.powered { border-color: var(--primary); background: oklch(0.577 0.245 27.325 / 25%); box-shadow: 0 0 8px 0 oklch(0.577 0.245 27.325 / 0.7); }
+    .lamp-indicator { height: 14px; width: 14px; border-radius: 50%; background: var(--lb-pin); }
+    .lamp-indicator.powered { background: var(--lb-pin-active); box-shadow: 0 0 10px 2px var(--lb-pin-active); }
+    
+    /* Terminal rename */
+    .terminal-rename { padding: 0 8px 6px; }
+    .terminal-rename .rename-input {
+      width: 100%; background: oklch(1 0 0 / 6%); border: 1px solid oklch(1 0 0 / 6%);
+      border-radius: 3px; padding: 2px 6px; font-size: 10px; color: var(--foreground); outline: none;
+      font-family: monospace;
+    }
+    .terminal-rename .rename-input:focus { border-color: var(--primary); }
+    .terminal-rename .rename-display {
+      width: 100%; text-align: left; font-size: 10px; font-family: monospace;
+      color: oklch(0.96 0 0 / 70%); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      transition: color 0.15s;
+    }
+    .terminal-rename .rename-display:hover { color: var(--foreground); }
+    .terminal-rename .rename-row { display: flex; align-items: center; gap: 4px; }
+    .terminal-rename .rename-row .confirm-btn { color: var(--primary); }
+    .terminal-rename .rename-row .cancel-btn { color: oklch(0.96 0 0 / 40%); }
+    
+    /* ============================================================ BOTTOM BAR */
+    #bottomBar {
+      height: 56px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px; border-top: 1px solid var(--border); background: var(--sidebar);
+    }
+    .bottom-stats { display: flex; align-items: center; gap: 16px; font-size: 12px; color: var(--muted-foreground); }
+    .bottom-stats .stat { display: flex; align-items: center; gap: 6px; }
+    .bottom-stats .stat .num { color: var(--foreground); font-family: monospace; }
+    .bottom-stats .divider { height: 12px; width: 1px; background: var(--border); }
+    .bottom-stats .editing-label { color: var(--primary); }
+    .bottom-actions { display: flex; align-items: center; gap: 8px; }
+    
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      height: 36px; padding: 0 12px; border-radius: 6px; font-size: 12px; font-weight: 500;
+      border: 1px solid var(--border); background: oklch(1 0 0 / 3%); color: oklch(0.96 0 0 / 80%);
+      transition: all 0.15s; text-decoration: none;
+    }
+    .btn:hover { background: oklch(1 0 0 / 6%); }
+    .btn-sm { height: 36px; padding: 0 12px; font-size: 12px; }
+    .btn-primary {
+      height: 36px; padding: 0 16px; font-size: 14px; font-weight: 600; gap: 8px;
+      background: var(--primary); color: var(--primary-foreground); border: none;
+      box-shadow: 0 3px 8px -2px oklch(0.577 0.245 27.325 / 30%);
+    }
+    .btn-primary:hover { background: oklch(0.577 0.245 27.325 / 90%); }
+    .btn-destructive {
+      background: var(--destructive); color: var(--destructive-foreground);
+      box-shadow: 0 3px 8px -2px oklch(0.577 0.245 27.325 / 30%);
+    }
+    .btn-destructive:hover { background: oklch(0.577 0.245 27.325 / 90%); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    /* ============================================================ DIALOG */
+    .dialog-overlay {
+      position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    }
+    .dialog-panel {
+      border-radius: 8px; border: 1px solid oklch(0.577 0.245 27.325 / 40%);
+      background: var(--popover); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+      width: 28rem; max-width: 90vw; max-height: 85vh; overflow: auto;
+    }
+    .dialog-panel.small { width: 24rem; }
+    .dialog-panel.medium { width: 26rem; }
+    .dialog-header {
+      display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;
+      border-bottom: 1px solid var(--border); background: oklch(0.577 0.245 27.325 / 5%);
+    }
+    .dialog-header h2 { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary); }
+    .dialog-close { color: var(--muted-foreground); transition: color 0.15s; display: flex; }
+    .dialog-close:hover { color: var(--foreground); }
+    .dialog-body { padding: 16px; }
+    .dialog-body p { font-size: 14px; color: var(--muted-foreground); line-height: 1.6; margin-bottom: 20px; white-space: pre-line; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    
+    /* Build dialog */
+    .build-info {
+      border-radius: 6px; border: 1px solid oklch(0.577 0.245 27.325 / 30%);
+      background: oklch(0.577 0.245 27.325 / 5%); padding: 8px 12px; font-size: 11px;
+      color: var(--muted-foreground); margin-bottom: 16px;
+    }
+    .build-info .hl { color: var(--primary); font-weight: 600; }
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: oklch(0.96 0 0 / 80%); margin-bottom: 6px; }
+    .form-input {
+      width: 100%; background: oklch(1 0 0 / 6%); border: 1px solid var(--border); border-radius: 6px;
+      padding: 8px 12px; font-size: 14px; color: var(--foreground); outline: none; transition: border-color 0.15s;
+    }
+    .form-input.mono { font-family: monospace; }
+    .form-input:focus { border-color: var(--primary); }
+    .form-hint { font-size: 10px; color: oklch(0.708 0 0 / 70%); margin-top: 4px; }
+    
+    /* Settings */
+    .settings-section { margin-bottom: 20px; }
+    .settings-section:last-child { margin-bottom: 0; }
+    .settings-section .settings-label { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: oklch(0.96 0 0 / 80%); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .settings-section .settings-value { font-size: 12px; font-family: monospace; color: var(--primary); }
+    .settings-description { font-size: 11px; color: oklch(0.708 0 0 / 80%); line-height: 1.6; margin-top: 8px; margin-bottom: 12px; }
+    .settings-divider { height: 1px; background: var(--border); margin: 20px 0; }
+    input[type="range"] { width: 100%; accent-color: var(--primary); }
+    .range-labels { display: flex; justify-content: between; font-size: 10px; color: oklch(0.708 0 0 / 70%); margin-top: 4px; }
+    .range-labels span:first-child { float: left; }
+    .range-labels span:last-child { float: right; }
+    .range-labels::after { content: ''; display: block; clear: both; }
+    
+    /* ============================================================ TOAST */
+    #toastRoot {
+      position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 100;
+      display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+    }
+    .toast {
+      border-radius: 8px; padding: 12px 16px; display: flex; align-items: flex-start; gap: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4); min-width: 280px; max-width: 400px;
+      animation: toast-in 0.2s ease-out; pointer-events: auto;
+    }
+    .toast.toast-out { animation: toast-out 0.2s ease-in forwards; }
+    .toast-success { background: var(--primary); color: var(--primary-foreground); border: 1px solid var(--primary); }
+    .toast-error { background: var(--destructive); color: var(--destructive-foreground); border: 1px solid var(--destructive); }
+    .toast .toast-icon { flex-shrink: 0; margin-top: 1px; }
+    .toast .toast-content { flex: 1; }
+    .toast .toast-title { font-size: 14px; font-weight: 600; }
+    .toast .toast-description { font-size: 12px; opacity: 0.9; margin-top: 2px; }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes toast-out { from { opacity: 1; } to { opacity: 0; transform: translateY(-20px); } }
+    
+    /* ============================================================ MISC */
+    .hidden { display: none !important; }
+    .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header id="header">
+      <div class="header-left">
+        <svg xmlns="http://w3.org" viewBox="10.5 10.5 3 3" width="24" height="24"><rect x="11.25" y="11.25" width="1.5" height="1.5" rx="0.2" fill="none" stroke="#e7000b" stroke-width="0.25"/><rect x="11.7" y="11.7" width="0.6" height="0.6" rx="0.1" fill="#e7000b" opacity="0.2"/><rect x="11.7" y="11.7" width="0.6" height="0.6" rx="0.1" fill="none" stroke="#e7000b" stroke-width="0.15"/><g stroke="#e7000b" stroke-width="0.25" stroke-linecap="round"><line x1="11.6" y1="10.7" x2="11.6" y2="11"/><line x1="12" y1="10.7" x2="12" y2="11"/><line x1="12.4" y1="10.7" x2="12.4" y2="11"/><line x1="11.6" y1="13" x2="11.6" y2="13.3"/><line x1="12" y1="13" x2="12" y2="13.3"/><line x1="12.4" y1="13" x2="12.4" y2="13.3"/><line x1="10.7" y1="11.6" x2="11" y2="11.6"/><line x1="10.7" y1="12" x2="11" y2="12"/><line x1="10.7" y1="12.4" x2="11" y2="12.4"/><line x1="13" y1="11.6" x2="13.3" y2="11.6"/><line x1="13" y1="12" x2="13.3" y2="12"/><line x1="13" y1="12.4" x2="13.3" y2="12.4"/></g></svg>
+        <!-- <div class="logo">&gt;_</div> -->
+        <h1>Logic Builder</h1>
+        <span class="subtitle"> combinational gate editor</span>
+      </div>
+      <div class="header-right" id="headerRight"></div>
+    </header>
+    <div id="main">
+      <aside id="sidebar">
+        <div class="sidebar-header" id="sidebarHeaderIcon"></div>
+        <div class="sidebar-list" id="sidebarList"></div>
+        <div class="sidebar-footer">Drag onto canvas · click to add · drag a node back here to delete</div>
+      </aside>
+      <div id="canvasContainer">
+        <div id="viewport"></div>
+        <div class="empty-state hidden" id="emptyState"></div>
+        <div class="pending-status" id="pendingStatus"></div>
+        <div class="scroll-hint">scroll to pan · ctrl+scroll to zoom</div>
+        <div class="zoom-controls" id="zoomControls"></div>
+      </div>
+    </div>
+    <footer id="bottomBar">
+      <div class="bottom-stats" id="bottomStats"></div>
+      <div class="bottom-actions" id="bottomActions"></div>
+    </footer>
+  </div>
+  <div id="dialogRoot"></div>
+  <div id="toastRoot"></div>
+  <script>
+    "use strict";
+    
+    /* ============================================================ ICONS */
+    const ICONS = {
+      boxes: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-blocks preview-icon"><path d="M10 22V7a1 1 0 0 0-1-1H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5a1 1 0 0 0-1-1H2"/><rect x="14" y="2" width="8" height="8" rx="1"/></svg>`,
+      cpu: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/></svg>`,
+      grip: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>`,
+      pencil: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174V22H8.67l12.504-15.188Z"/><path d="m15 5 4 4"/></svg>`,
+      trash: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`,
+      check: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+      x: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`,
+      hammer: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-hammer preview-icon"><path d="m15 12-9.373 9.373a1 1 0 0 1-3.001-3L12 9"/><path d="m18 15 4-4"/><path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172v-.344a2 2 0 0 0-.586-1.414l-1.657-1.657A6 6 0 0 0 12.516 3H9l1.243 1.243A6 6 0 0 1 12 8.485V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5"/></svg>`,
+      cursor: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5v15l5.8-5.8 4.2 8.3 3.5-1.3-4.2-8.3L20 9.5z"/></svg>`,
+      zoomIn: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="11" x2="11" y1="8" y2="14"/><line x1="8" x2="14" y1="11" y2="11"/></svg>`,
+      zoomOut: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="8" x2="14" y1="11" y2="11"/></svg>`,
+      maximize: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>`,
+      settings: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings preview-icon"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>`,
+      rotate: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`,
+      checkSm: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+      xSm: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`,
+      trashSm: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+    };
+    
+    /* ============================================================ CONSTANTS */
+    const WORLD_WIDTH = 6000;
+    const WORLD_HEIGHT = 4500;
+    const NODE_WIDTH = 140;
+    const NODE_WIDTH_CUSTOM = 180;
+    const NODE_WIDTH_TERMINAL = 110;
+    const HEADER_HEIGHT = 34;
+    const TERMINAL_HEADER_HEIGHT = 26;
+    const PIN_HEIGHT = 28;
+    const PIN_RADIUS = 7;
+    const TERMINAL_PIN_Y = TERMINAL_HEADER_HEIGHT + 14;
+    
+    function nodeWidth(node) {
+      if (node.kind === 'CUSTOM') return NODE_WIDTH_CUSTOM;
+      if (node.kind === 'INPUT' || node.kind === 'OUTPUT') return NODE_WIDTH_TERMINAL;
+      return NODE_WIDTH;
+    }
+    function nodeHeight(node) {
+      if (node.kind === 'INPUT' || node.kind === 'OUTPUT') {
+        return TERMINAL_HEADER_HEIGHT + 28 + 22;
+      }
+      const pins = Math.max(node.inputs.length, node.outputs.length, 1);
+      return HEADER_HEIGHT + pins * PIN_HEIGHT + 8;
+    }
+    function inputPinPos(node, pinIndex) {
+      if (node.kind === 'OUTPUT') {
+        return { x: node.position.x, y: node.position.y + TERMINAL_PIN_Y };
+      }
+      return { x: node.position.x, y: node.position.y + HEADER_HEIGHT + pinIndex * PIN_HEIGHT + PIN_HEIGHT / 2 };
+    }
+    function outputPinPos(node, pinIndex) {
+      if (node.kind === 'INPUT') {
+        return { x: node.position.x + nodeWidth(node), y: node.position.y + TERMINAL_PIN_Y };
+      }
+      return { x: node.position.x + nodeWidth(node), y: node.position.y + HEADER_HEIGHT + pinIndex * PIN_HEIGHT + PIN_HEIGHT / 2 };
+    }
+    function wirePath(from, to) {
+      const dx = Math.abs(to.x - from.x);
+      const offset = Math.max(40, dx * 0.4);
+      const c1x = from.x + offset;
+      const c2x = to.x - offset;
+      return `M ${from.x},${from.y} C ${c1x},${from.y} ${c2x},${to.y} ${to.x},${to.y}`;
+    }
+    
+    /* ============================================================ STATE */
+    let _idCounter = 1;
+    function uid(prefix) { _idCounter += 1; return `${prefix}_${Date.now().toString(36)}_${_idCounter}`; }
+    
+    const wireInternals = new Map();
+    
+    const state = {
+      nodes: [],
+      connections: [],
+      customBlocks: [],
+      pendingFrom: null,
+      editingBlockId: null,
+      stashedNodes: [],
+      stashedConnections: [],
+      selectionMode: false,
+      selectionRect: null,
+      zoom: 1,
+      wireDelay: 0,
+      wireTransit: {},
+    };
+    
+    const subscribers = new Set();
+    function subscribe(fn) { subscribers.add(fn); return () => subscribers.delete(fn); }
+    function notify() { subscribers.forEach(fn => fn()); }
+    
+    /* ============================================================ NODE FACTORY */
+    function makeGate(kind) {
+      if (kind === 'AND') {
+        return {
+          inputs: [
+            { id: 'a', name: 'a', kind: 'input', value: false },
+            { id: 'b', name: 'b', kind: 'input', value: false },
+          ],
+          outputs: [{ id: 'c', name: 'c', kind: 'output', value: false }],
+        };
+      }
+      if (kind === 'NOT') {
+        return {
+          inputs: [{ id: 'a', name: 'a', kind: 'input', value: false }],
+          outputs: [{ id: 'b', name: 'b', kind: 'output', value: false }],
+        };
+      }
+      return { inputs: [], outputs: [] };
+    }
+    
+    function createNode(kind, position, opts) {
+      opts = opts || {};
+      const base = makeGate(kind);
+      let inputs = base.inputs;
+      let outputs = base.outputs;
+      if (kind === 'INPUT') {
+        inputs = [];
+        outputs = [{ id: 'out', name: 'out', kind: 'output', value: false }];
+      } else if (kind === 'OUTPUT') {
+        inputs = [{ id: 'in', name: 'in', kind: 'input', value: false }];
+        outputs = [];
+      } else if (kind === 'CUSTOM' && opts.pins) {
+        inputs = (opts.pins.inputs || []).map(p => ({ ...p, value: false }));
+        outputs = (opts.pins.outputs || []).map(p => ({ ...p, value: false }));
+      }
+      return {
+        id: uid('node'),
+        kind,
+        defId: opts.defId,
+        position: { x: position.x, y: position.y },
+        inputs, outputs,
+        name: opts.name,
+        state: kind === 'INPUT' ? false : undefined,
+      };
+    }
+    
+    /* ============================================================ SIMULATION */
+    function evalGate(kind, inputs, def, allDefs) {
+      if (kind === 'AND') return [inputs[0] && inputs[1]];
+      if (kind === 'NOT') return [!inputs[0]];
+      if (kind === 'INPUT') return [];
+      if (kind === 'OUTPUT') return [];
+      if (kind === 'CUSTOM' && def) {
+        const toggles = def.nodes.filter(n => n.kind === 'INPUT');
+        const lamps = def.nodes.filter(n => n.kind === 'OUTPUT');
+        const overrides = new Map();
+        toggles.forEach((t, i) => overrides.set(t.id, inputs[i] || false));
+        const inner = evaluateGraph(def.nodes, def.connections, overrides, allDefs || [def]);
+        const outVals = [];
+        for (const lamp of lamps) {
+          const inp = inner.nodeInputs[lamp.id] && inner.nodeInputs[lamp.id]['in'] !== undefined ? inner.nodeInputs[lamp.id]['in'] : false;
+          outVals.push(inp);
+        }
+        return outVals;
+      }
+      return [];
+    }
+    
+    function evaluateGraph(nodes, connections, toggleOverrides, defs, wireTransit) {
+      const nodeOutputs = {};
+      const nodeInputs = {};
+      for (const n of nodes) {
+        nodeOutputs[n.id] = {};
+        nodeInputs[n.id] = {};
+        for (const p of n.inputs) nodeInputs[n.id][p.id] = false;
+        for (const p of n.outputs) nodeOutputs[n.id][p.id] = false;
+      }
+      for (const n of nodes) {
+        if (n.kind === 'INPUT') {
+          const v = (toggleOverrides && toggleOverrides.get(n.id)) !== undefined ? toggleOverrides.get(n.id) : (n.state || false);
+          for (const p of n.outputs) nodeOutputs[n.id][p.id] = v;
+        }
+      }
+      const maxIterations = 200;
+      for (let iter = 0; iter < maxIterations; iter++) {
+        let changed = false;
+        for (const c of connections) {
+          const src = nodeOutputs[c.fromNode] && nodeOutputs[c.fromNode][c.fromPin];
+          if (src === undefined) continue;
+          const dst = nodeInputs[c.toNode] && nodeInputs[c.toNode][c.toPin];
+          if (dst === undefined) continue;
+          const transit = wireTransit && wireTransit[c.id];
+          const effective = transit !== undefined ? transit : src;
+          if (effective !== dst) {
+            nodeInputs[c.toNode][c.toPin] = effective;
+            changed = true;
+          }
+        }
+        for (const n of nodes) {
+          if (n.kind === 'INPUT' || n.kind === 'OUTPUT') continue;
+          const inVals = n.inputs.map(p => nodeInputs[n.id][p.id] || false);
+          const def = n.defId ? (defs && defs.find(d => d.id === n.defId)) : undefined;
+          const outVals = evalGate(n.kind, inVals, def, defs);
+          n.outputs.forEach((p, i) => {
+            const next = outVals[i] || false;
+            if (nodeOutputs[n.id][p.id] !== next) {
+              nodeOutputs[n.id][p.id] = next;
+              changed = true;
+            }
+          });
+        }
+        if (!changed) break;
+      }
+      return { nodeOutputs, nodeInputs };
+    }
+    
+    function getEvalResult() {
+      return evaluateGraph(state.nodes, state.connections, undefined, state.customBlocks, state.wireTransit);
+    }
+    
+    /* ============================================================ WIRE DELAY */
+    function tickWires() {
+      if (state.wireDelay <= 0) {
+        wireInternals.clear();
+        if (Object.keys(state.wireTransit).length > 0) {
+          state.wireTransit = {};
+          notify();
+        }
+        return;
+      }
+      const syncEval = evaluateGraph(state.nodes, state.connections, undefined, state.customBlocks, state.wireTransit);
+      const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      const newTransit = {};
+      let anyChanged = false;
+      for (const c of state.connections) {
+        const src = (syncEval.nodeOutputs[c.fromNode] && syncEval.nodeOutputs[c.fromNode][c.fromPin]) || false;
+        let internal = wireInternals.get(c.id);
+        if (!internal) {
+          internal = { sourceValue: src, lastChangeTime: now };
+          wireInternals.set(c.id, internal);
+        } else if (src !== internal.sourceValue) {
+          internal.sourceValue = src;
+          internal.lastChangeTime = now;
+        }
+        const prevTransit = state.wireTransit[c.id];
+        const transitValue = prevTransit !== undefined ? prevTransit : false;
+        if (now - internal.lastChangeTime >= state.wireDelay && transitValue !== internal.sourceValue) {
+          newTransit[c.id] = internal.sourceValue;
+          anyChanged = true;
+        } else {
+          newTransit[c.id] = transitValue;
+        }
+      }
+      const liveConnIds = new Set(state.connections.map(c => c.id));
+      for (const id of wireInternals.keys()) {
+        if (!liveConnIds.has(id)) wireInternals.delete(id);
+      }
+      const wireSetChanged = Object.keys(state.wireTransit).length !== Object.keys(newTransit).length;
+      if (anyChanged || wireSetChanged) {
+        state.wireTransit = newTransit;
+        notify();
+      }
+    }
+    
+    /* ============================================================ STORE ACTIONS */
+    function addNodeFromTemplate(kind, position, defId) {
+      if (kind === 'CUSTOM' && defId && defId === state.editingBlockId) return;
+      const s = state;
+      const finalPos = s.nodes.length === 0
+        ? { x: WORLD_WIDTH / 2 - 70, y: WORLD_HEIGHT / 2 - 30 }
+        : { x: position.x, y: position.y };
+      let node;
+      if (kind === 'CUSTOM' && defId) {
+        const def = s.customBlocks.find(d => d.id === defId);
+        if (!def) return;
+        node = createNode(kind, finalPos, {
+          defId,
+          pins: {
+            inputs: def.inputPins.map(p => ({ ...p, kind: 'input' })),
+            outputs: def.outputPins.map(p => ({ ...p, kind: 'output' })),
+          },
+        });
+      } else {
+        node = createNode(kind, finalPos);
+      }
+      s.nodes = [...s.nodes, node];
+      s.pendingFrom = null;
+      notify();
+    }
+    
+    function moveNode(id, position) {
+      state.nodes = state.nodes.map(n => n.id === id ? { ...n, position } : n);
+      notify();
+    }
+    
+    function removeNode(id) {
+      state.nodes = state.nodes.filter(n => n.id !== id);
+      state.connections = state.connections.filter(c => c.fromNode !== id && c.toNode !== id);
+      notify();
+    }
+    
+    function renameNode(id, name) {
+      state.nodes = state.nodes.map(n => n.id === id ? { ...n, name } : n);
+      notify();
+    }
+    
+    function toggleInput(id) {
+      state.nodes = state.nodes.map(n => (n.kind === 'INPUT' && n.id === id) ? { ...n, state: !(n.state || false) } : n);
+      notify();
+    }
+    
+    function startPending(nodeId, pinId, kind) {
+      state.pendingFrom = { nodeId, pinId, kind };
+      notify();
+    }
+    
+    function clearPending() {
+      state.pendingFrom = null;
+      notify();
+    }
+    
+    function completePending(nodeId, pinId, kind) {
+      const pending = state.pendingFrom;
+      if (!pending) return false;
+      let from, to;
+      if (pending.kind === 'output' && kind === 'input') {
+        from = { nodeId: pending.nodeId, pinId: pending.pinId };
+        to = { nodeId, pinId };
+      } else if (pending.kind === 'input' && kind === 'output') {
+        from = { nodeId, pinId };
+        to = { nodeId: pending.nodeId, pinId: pending.pinId };
+      } else {
+        state.pendingFrom = null;
+        notify();
+        return false;
+      }
+      if (from.nodeId === to.nodeId) { state.pendingFrom = null; notify(); return false; }
+      const exists = state.connections.find(c => c.toNode === to.nodeId && c.toPin === to.pinId);
+      if (exists) { state.pendingFrom = null; notify(); return false; }
+      const conn = { id: uid('conn'), fromNode: from.nodeId, fromPin: from.pinId, toNode: to.nodeId, toPin: to.pinId };
+      state.connections = [...state.connections, conn];
+      state.pendingFrom = null;
+      notify();
+      return true;
+    }
+    
+    function nextDefaultName(nodes, kind) {
+      const prefix = kind === 'INPUT' ? 'IN_' : 'OUT_';
+      let n = 1;
+      const existing = new Set(nodes.filter(nd => nd.kind === kind).map(nd => nd.name));
+      while (existing.has(`${prefix}${n}`)) n++;
+      return `${prefix}${n}`;
+    }
+    
+    function createTerminalAt(kind, position, connectFromPending) {
+      const s = state;
+      let name;
+      if (connectFromPending && s.pendingFrom) {
+        const pending = s.pendingFrom;
+        const srcNode = s.nodes.find(n => n.id === pending.nodeId);
+        if (srcNode) {
+          const pinList = pending.kind === 'output' ? srcNode.outputs : srcNode.inputs;
+          const pin = pinList.find(p => p.id === pending.pinId);
+          if (pin && pin.name) name = pin.name;
+        }
+      }
+      if (!name) name = nextDefaultName(s.nodes, kind);
+      const node = createNode(kind, position, { name });
+      s.nodes = [...s.nodes, node];
+      if (connectFromPending && s.pendingFrom) {
+        const pending = s.pendingFrom;
+        let conn = null;
+        if (pending.kind === 'output' && kind === 'OUTPUT') {
+          conn = { id: uid('conn'), fromNode: pending.nodeId, fromPin: pending.pinId, toNode: node.id, toPin: 'in' };
+        } else if (pending.kind === 'input' && kind === 'INPUT') {
+          conn = { id: uid('conn'), fromNode: node.id, fromPin: 'out', toNode: pending.nodeId, toPin: pending.pinId };
+        }
+        if (conn) s.connections = [...s.connections, conn];
+        s.pendingFrom = null;
+      }
+      notify();
+      return node.id;
+    }
+    
+    function removeConnection(id) {
+      state.connections = state.connections.filter(c => c.id !== id);
+      notify();
+    }
+    
+    function nextBlockName(blocks) {
+      const existing = new Set(blocks.map(b => b.name));
+      let n = 1;
+      while (existing.has(`Block ${n}`)) n++;
+      return `Block ${n}`;
+    }
+    
+    function normalizeRect(x1, y1, x2, y2) {
+      const left = Math.min(x1, x2);
+      const top = Math.min(y1, y2);
+      const right = Math.max(x1, x2);
+      const bottom = Math.max(y1, y2);
+      return {
+        x: left,
+        y: top,
+        w: Math.max(1, right - left),
+        h: Math.max(1, bottom - top),
+      };
+    }
+    
+    function rectIntersectsNode(node, rect) {
+      const left = node.position.x;
+      const top = node.position.y;
+      const right = left + nodeWidth(node);
+      const bottom = top + nodeHeight(node);
+      return rect.x < right && rect.x + rect.w > left && rect.y < bottom && rect.y + rect.h > top;
+    }
+    
+    function getConnectedNodeIdsFromSeed(seedIds) {
+      const selected = new Set(seedIds);
+      const queue = [...seedIds];
+      while (queue.length > 0) {
+        const currentId = queue.shift();
+        for (const conn of state.connections) {
+          if (conn.fromNode === currentId && !selected.has(conn.toNode)) {
+            selected.add(conn.toNode);
+            queue.push(conn.toNode);
+          }
+          if (conn.toNode === currentId && !selected.has(conn.fromNode)) {
+            selected.add(conn.fromNode);
+            queue.push(conn.fromNode);
+          }
+        }
+      }
+      return selected;
+    }
+    
+    function getNodesInSelectionRect(rect) {
+      if (!rect) return new Set();
+      const seed = state.nodes.filter(node => rectIntersectsNode(node, rect)).map(node => node.id);
+      if (seed.length === 0) return new Set();
+      return getConnectedNodeIdsFromSeed(seed);
+    }
+    
+    function enterSelectionMode() {
+      state.selectionMode = true;
+      state.selectionRect = null;
+      state.pendingFrom = null;
+      document.body.style.cursor = 'crosshair';
+      notify();
+    }
+    
+    function cancelSelectionMode() {
+      state.selectionMode = false;
+      state.selectionRect = null;
+      document.body.style.cursor = '';
+      notify();
+    }
+    
+    function buildSelectedBlock(name, description) {
+      if (!state.selectionRect) {
+        showToast('Nothing selected', 'Drag a rectangle over at least one connected circuit.', 'toast-error');
+        return;
+      }
+      const selectedIds = getNodesInSelectionRect(state.selectionRect);
+      if (selectedIds.size === 0) {
+        showToast('Nothing selected', 'Drag a rectangle over at least one connected circuit.', 'toast-error');
+        return;
+      }
+    
+      const nodes = state.nodes.filter(node => selectedIds.has(node.id));
+      const connections = state.connections.filter(conn => selectedIds.has(conn.fromNode) && selectedIds.has(conn.toNode));
+      const def = buildDefFromCanvas(nodes, connections, state.customBlocks, undefined, name, description);
+      if (!def) {
+        showToast('No usable circuit', 'The selected area must include at least one input or output node.', 'toast-error');
+        return;
+      }
+    
+      state.customBlocks = [...state.customBlocks, def];
+      state.selectionMode = false;
+      state.selectionRect = null;
+      document.body.style.cursor = '';
+      notify();
+      const label = def.name || 'Block';
+      showToast('Block created', `${label} · ${def.inputPins.length} in, ${def.outputPins.length} out`);
+    }
+    
+    function buildDefFromCanvas(nodes, connections, existingBlocks, existingId, customName, customDescription) {
+      const toggles = nodes.filter(n => n.kind === 'INPUT');
+      const lamps = nodes.filter(n => n.kind === 'OUTPUT');
+      if (toggles.length === 0 && lamps.length === 0) return null;
+      const inputPins = toggles.map((t, i) => ({ id: `in_${i}`, name: t.name || `IN_${i + 1}` }));
+      const outputPins = lamps.map((l, i) => ({ id: `out_${i}`, name: l.name || `OUT_${i + 1}` }));
+      const idMap = new Map();
+      const remappedNodes = [];
+      for (const n of nodes) {
+        const newId = uid('sub');
+        idMap.set(n.id, newId);
+        remappedNodes.push({
+          ...n, id: newId, position: { ...n.position },
+          inputs: n.inputs.map(p => ({ ...p })), outputs: n.outputs.map(p => ({ ...p })),
+        });
+      }
+      const remappedConns = connections.map(c => ({
+        id: uid('subc'), fromNode: idMap.get(c.fromNode), fromPin: c.fromPin, toNode: idMap.get(c.toNode), toPin: c.toPin,
+      })).filter(c => c.fromNode && c.toNode);
+      const id = existingId || uid('block');
+      const existing = existingId ? existingBlocks.find(b => b.id === existingId) : undefined;
+      const name = (customName && customName.trim()) || (existingId ? (existing ? existing.name : 'Block 1') : nextBlockName(existingBlocks));
+      const description = customDescription !== undefined ? customDescription : (existingId ? (existing ? existing.description : undefined) : 'Custom Block');
+      return { id, name, description, inputPins, outputPins, nodes: remappedNodes, connections: remappedConns, createdAt: Date.now() };
+    }
+    
+    function buildCustomBlock(name, description) {
+      const def = buildDefFromCanvas(state.nodes, state.connections, state.customBlocks, undefined, name, description);
+      if (!def) return null;
+      state.customBlocks = [...state.customBlocks, def];
+      state.nodes = [];
+      state.connections = [];
+      state.pendingFrom = null;
+      notify();
+      return def.id;
+    }
+    
+    function editCustomBlock(defId) {
+      const def = state.customBlocks.find(b => b.id === defId);
+      if (!def) return;
+      state.stashedNodes = state.nodes;
+      state.stashedConnections = state.connections;
+      state.editingBlockId = defId;
+      state.nodes = def.nodes.map(n => ({
+        ...n, position: { ...n.position }, inputs: n.inputs.map(p => ({ ...p })), outputs: n.outputs.map(p => ({ ...p })),
+      }));
+      state.connections = def.connections.map(c => ({ ...c }));
+      state.pendingFrom = null;
+      wireInternals.clear();
+      state.wireTransit = {};
+      notify();
+    }
+    
+    function saveEditedBlock() {
+      const editingId = state.editingBlockId;
+      if (!editingId) return null;
+      const def = state.customBlocks.find(b => b.id === editingId);
+      if (!def) return null;
+      const newDef = buildDefFromCanvas(state.nodes, state.connections, state.customBlocks, editingId);
+      if (!newDef) return null;
+      const updated = { ...newDef, id: editingId, name: def.name, description: def.description, createdAt: def.createdAt };
+      state.customBlocks = state.customBlocks.map(b => b.id === editingId ? updated : b);
+      state.nodes = state.stashedNodes;
+      state.connections = state.stashedConnections;
+      state.stashedNodes = [];
+      state.stashedConnections = [];
+      state.editingBlockId = null;
+      state.pendingFrom = null;
+      wireInternals.clear();
+      state.wireTransit = {};
+      notify();
+      return editingId;
+    }
+    
+    function cancelEdit() {
+      if (!state.editingBlockId) return;
+      state.nodes = state.stashedNodes;
+      state.connections = state.stashedConnections;
+      state.stashedNodes = [];
+      state.stashedConnections = [];
+      state.editingBlockId = null;
+      state.pendingFrom = null;
+      wireInternals.clear();
+      state.wireTransit = {};
+      notify();
+    }
+    
+    function deleteCustomBlock(defId) {
+      if (state.editingBlockId === defId) {
+        state.nodes = state.stashedNodes;
+        state.connections = state.stashedConnections;
+        state.stashedNodes = [];
+        state.stashedConnections = [];
+        state.editingBlockId = null;
+        state.pendingFrom = null;
+      }
+      const doomedNodeIds = new Set(state.nodes.filter(n => n.defId === defId).map(n => n.id));
+      state.customBlocks = state.customBlocks.filter(b => b.id !== defId);
+      state.nodes = state.nodes.filter(n => n.defId !== defId);
+      state.connections = state.connections.filter(c => !doomedNodeIds.has(c.fromNode) && !doomedNodeIds.has(c.toNode));
+      notify();
+    }
+    
+    function renameCustomBlock(defId, newName) {
+      state.customBlocks = state.customBlocks.map(b => b.id === defId ? { ...b, name: newName } : b);
+      notify();
+    }
+    
+    function setCustomBlockDescription(defId, desc) {
+      state.customBlocks = state.customBlocks.map(b => b.id === defId ? { ...b, description: desc } : b);
+      notify();
+    }
+    
+    function setZoom(z) {
+      const viewport = document.getElementById('viewport');
+      const previousZoom = state.zoom;
+      const nextZoom = Math.max(0.25, Math.min(2.5, Math.round(z * 100) / 100));
+      const centerX = viewport ? viewport.clientWidth / 2 : 0;
+      const centerY = viewport ? viewport.clientHeight / 2 : 0;
+      const centerWorldX = viewport ? (viewport.scrollLeft + centerX) / previousZoom : 0;
+      const centerWorldY = viewport ? (viewport.scrollTop + centerY) / previousZoom : 0;
+      state.zoom = nextZoom;
+      notify();
+      if (viewport) {
+        viewport.scrollTo(centerWorldX * nextZoom - centerX, centerWorldY * nextZoom - centerY);
+      }
+    }
+    
+    function setWireDelay(ms) {
+      wireInternals.clear();
+      state.wireDelay = Math.max(0, Math.min(1000, Math.round(ms)));
+      state.wireTransit = {};
+      notify();
+    }
+    
+    function resetGame() {
+      wireInternals.clear();
+      state.nodes = [];
+      state.connections = [];
+      state.customBlocks = [];
+      state.pendingFrom = null;
+      state.editingBlockId = null;
+      state.stashedNodes = [];
+      state.stashedConnections = [];
+      state.zoom = 1;
+      state.wireDelay = 0;
+      state.wireTransit = {};
+      notify();
+    }
+    
+    /* ============================================================ TOASTS */
+    const RED_TOAST_STYLE = 'toast-success';
+    function showToast(title, description, type) {
+      const root = document.getElementById('toastRoot');
+      const el = document.createElement('div');
+      el.className = `toast ${type || RED_TOAST_STYLE}`;
+      const iconSvg = type === 'toast-error'
+        ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="toast-icon"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>'
+        : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="toast-icon"><polyline points="20 6 9 17 4 12"/></svg>';
+      el.innerHTML = `${iconSvg}<div class="toast-content"><div class="toast-title">${escapeHtml(title)}</div>${description ? `<div class="toast-description">${escapeHtml(description)}</div>` : ''}</div>`;
+      root.appendChild(el);
+      setTimeout(() => {
+        el.classList.add('toast-out');
+        setTimeout(() => el.remove(), 200);
+      }, 4000);
+    }
+    
+    function escapeHtml(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    
+    /* ============================================================ DIALOGS */
+    function closeAllDialogs() {
+      document.getElementById('dialogRoot').innerHTML = '';
+    }
+    
+    function showDialog({ title, body, maxWidth }) {
+      const root = document.getElementById('dialogRoot');
+      const overlay = document.createElement('div');
+      overlay.className = 'dialog-overlay';
+      const panel = document.createElement('div');
+      panel.className = 'dialog-panel' + (maxWidth === 'small' ? ' small' : maxWidth === 'medium' ? ' medium' : '');
+      panel.innerHTML = `
+        <div class="dialog-header">
+          <h2>${escapeHtml(title)}</h2>
+          <button class="dialog-close">${ICONS.x}</button>
+        </div>
+        <div class="dialog-body"></div>
+      `;
+      overlay.appendChild(panel);
+      root.appendChild(overlay);
+      const bodyEl = panel.querySelector('.dialog-body');
+      if (typeof body === 'string') bodyEl.innerHTML = body;
+      else if (body instanceof HTMLElement) bodyEl.appendChild(body);
+      const closeBtn = panel.querySelector('.dialog-close');
+      const close = () => { overlay.remove(); };
+      closeBtn.onclick = close;
+      overlay.onclick = (e) => { if (e.target === overlay) close(); };
+      const escHandler = (e) => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', escHandler); } };
+      document.addEventListener('keydown', escHandler);
+      return { close, bodyEl, panel };
+    }
+    
+    function showConfirmDialog({ title, message, confirmLabel, cancelLabel, destructive, onConfirm, onCancel }) {
+      const body = document.createElement('div');
+      body.innerHTML = `<p>${escapeHtml(message)}</p><div class="dialog-actions"></div>`;
+      const actions = body.querySelector('.dialog-actions');
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'btn btn-sm';
+      cancelBtn.textContent = cancelLabel || 'Cancel';
+      const confirmBtn = document.createElement('button');
+      confirmBtn.className = 'btn btn-sm ' + (destructive ? 'btn-destructive' : 'btn-primary');
+      confirmBtn.textContent = confirmLabel || 'Confirm';
+      actions.appendChild(cancelBtn);
+      actions.appendChild(confirmBtn);
+      const dlg = showDialog({ title, body, maxWidth: 'small' });
+      cancelBtn.onclick = () => { dlg.close(); if (onCancel) onCancel(); };
+      confirmBtn.onclick = () => { dlg.close(); if (onConfirm) onConfirm(); };
+      return dlg;
+    }
+    
+    function showBuildDialog({ defaultName, defaultDescription, inputCount, outputCount, onBuild, onCancel }) {
+      const body = document.createElement('div');
+      body.innerHTML = `
+        <div class="build-info">This block will expose <span class="hl">${inputCount} input pin(s)</span> and <span class="hl">${outputCount} output pin(s)</span> from the toggles and lamps on the canvas.</div>
+        <div class="form-group">
+          <label class="form-label">Name</label>
+          <input class="form-input" id="buildNameInput" value="${escapeHtml(defaultName)}" placeholder="${escapeHtml(defaultName)}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <input class="form-input mono" id="buildDescInput" value="${escapeHtml(defaultDescription)}" placeholder="${escapeHtml(defaultDescription)}">
+          <div class="form-hint">Leave empty to fall back to default description.</div>
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-sm" id="buildCancelBtn">Cancel</button>
+          <button class="btn btn-sm" id="buildSelectBtn">${ICONS.cursor} Select</button>
+          <button class="btn btn-primary" id="buildConfirmBtn">${ICONS.hammer} Build</button>
+        </div>
+      `;
+      const dlg = showDialog({ title: 'Build a new block', body, maxWidth: 'medium' });
+      const nameInput = body.querySelector('#buildNameInput');
+      const descInput = body.querySelector('#buildDescInput');
+      const cancelBtn = body.querySelector('#buildCancelBtn');
+      const selectBtn = body.querySelector('#buildSelectBtn');
+      const confirmBtn = body.querySelector('#buildConfirmBtn');
+      setTimeout(() => nameInput.focus(), 0);
+      nameInput.select();
+      const doBuild = () => {
+        const name = nameInput.value.trim() || defaultName;
+        const desc = descInput.value;
+        dlg.close();
+        onBuild(name, desc);
+      };
+      cancelBtn.onclick = () => { dlg.close(); if (onCancel) onCancel(); };
+      selectBtn.onclick = () => {
+        dlg.close();
+        enterSelectionMode();
+      };
+      confirmBtn.onclick = doBuild;
+      nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doBuild(); });
+      descInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doBuild(); });
+      return dlg;
+    }
+    
+    function showSettings() {
+      const body = document.createElement('div');
+      const wireDelay = state.wireDelay;
+      body.innerHTML = `
+        <div class="settings-section">
+          <div class="settings-label"><span>Wire delay</span><span class="settings-value" id="delayValue">${wireDelay}ms</span></div>
+          <input type="range" id="delaySlider" min="0" max="1000" step="10" value="${wireDelay}">
+          <div class="range-labels"><span>0ms (instant)</span><span> - </span><span>1000ms</span></div>
+          <p class="settings-description">Artificial propagation delay added to every wire. At 0ms the circuit is instantaneous; raise the value to watch signals travel through the graph.</p>
+        </div>
+        <div class="settings-divider"></div>
+        <div class="settings-section">
+          <div class="settings-label"><span>Reset game</span></div>
+          <p class="settings-description">Clears the canvas, removes all custom blocks, and resets settings to defaults. Cannot be undone.</p>
+          <button class="btn btn-sm btn-destructive" id="resetBtn" style="border:1px solid oklch(0.577 0.245 27.325 / 40%); background:oklch(0.577 0.245 27.325 / 10%); color:var(--destructive);">${ICONS.rotate} Reset everything</button>
+        </div>
+      `;
+      const dlg = showDialog({ title: 'Settings', body });
+      const slider = body.querySelector('#delaySlider');
+      const delayValue = body.querySelector('#delayValue');
+      slider.addEventListener('input', (e) => {
+        const v = Number(e.target.value);
+        setWireDelay(v);
+        delayValue.textContent = `${v}ms`;
+      });
+      body.querySelector('#resetBtn').onclick = () => {
+        dlg.close();
+        showConfirmDialog({
+          title: 'Reset everything?',
+          message: 'This clears the canvas, removes all custom blocks, and resets settings to defaults.\n\nThis cannot be undone.',
+          confirmLabel: 'Reset',
+          destructive: true,
+          onConfirm: () => {
+            resetGame();
+            showToast('Game reset', 'Canvas, custom blocks, and settings cleared.');
+          },
+        });
+      };
+    }
+    
+    /* ============================================================ RENDERING */
+    function el(tag, className, attrs, children) {
+      const e = document.createElement(tag);
+      if (className) e.className = className;
+      if (attrs) for (const k in attrs) {
+        if (k === 'style' && typeof attrs[k] === 'object') Object.assign(e.style, attrs[k]);
+        else if (k.startsWith('on') && typeof attrs[k] === 'function') e.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
+        else if (k === 'html') e.innerHTML = attrs[k];
+        else e.setAttribute(k, attrs[k]);
+      }
+      if (children) {
+        if (typeof children === 'string') e.textContent = children;
+        else if (Array.isArray(children)) children.forEach(c => { if (c) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+        else e.appendChild(children);
+      }
+      return e;
+    }
+    
+    function renderHeader() {
+      const headerRight = document.getElementById('headerRight');
+      const isEditing = state.editingBlockId !== null;
+      const editingBlock = state.customBlocks.find(b => b.id === state.editingBlockId);
+      headerRight.innerHTML = '';
+      if (isEditing) {
+        const indicator = el('div', 'editing-indicator');
+        indicator.innerHTML = '<span class="editing-dot"></span> editing ' + escapeHtml(editingBlock ? editingBlock.name : 'block') + ' · drag & rewire, then hit Done';
+        headerRight.appendChild(indicator);
+      } else {
+        const legend = el('div', 'legend');
+        legend.innerHTML = '<span class="legend-item"><span class="legend-swatch legend-powered"></span>powered</span><span class="legend-item"><span class="legend-swatch legend-idle"></span>idle</span>';
+        headerRight.appendChild(legend);
+      }
+      const settingsBtn = el('button', 'icon-btn', { title: 'Settings', 'aria-label': 'Settings', onclick: showSettings });
+      settingsBtn.innerHTML = ICONS.settings;
+      headerRight.appendChild(settingsBtn);
+    
+      const sidebarHeader = document.getElementById('sidebarHeaderIcon');
+      sidebarHeader.innerHTML = ICONS.boxes + '<h2>Blocks</h2>';
+    }
+    
+    function renderSidebar() {
+      const list = document.getElementById('sidebarList');
+      list.innerHTML = '';
+      const builtins = [
+        { kind: 'AND', label: 'AND', description: 'a · b → c', inCount: 2, outCount: 1 },
+        { kind: 'NOT', label: 'NOT', description: '¬a → b', inCount: 1, outCount: 1 },
+      ];
+      builtins.forEach(item => {
+        list.appendChild(renderSidebarItem({
+          label: item.label,
+          description: item.description,
+          inCount: item.inCount,
+          outCount: item.outCount,
+          onAdd: () => addNodeFromTemplate(item.kind, { x: WORLD_WIDTH / 2 - 70, y: WORLD_HEIGHT / 2 - 30 }),
+          onDragStart: (e) => { e.dataTransfer.setData('application/json', JSON.stringify({ kind: item.kind })); e.dataTransfer.effectAllowed = 'copy'; },
+        }));
+      });
+      state.customBlocks.forEach(b => {
+        const isEditingThis = state.editingBlockId === b.id;
+        const autoDesc = `${b.inputPins.length} in · ${b.outputPins.length} out`;
+        list.appendChild(renderSidebarItem({
+          label: b.name,
+          description: b.description || autoDesc,
+          inCount: b.inputPins.length,
+          outCount: b.outputPins.length,
+          icon: ICONS.cpu,
+          isCustom: true,
+          isBeingEdited: isEditingThis,
+          onAdd: () => addNodeFromTemplate('CUSTOM', { x: WORLD_WIDTH / 2 - 70, y: WORLD_HEIGHT / 2 - 30 }, b.id),
+          onDragStart: (e) => {
+            if (isEditingThis) { e.preventDefault(); return; }
+            e.dataTransfer.setData('application/json', JSON.stringify({ kind: 'CUSTOM', defId: b.id }));
+            e.dataTransfer.effectAllowed = 'copy';
+          },
+          onRename: (newName) => { if (newName.trim()) renameCustomBlock(b.id, newName.trim()); },
+          onEdit: () => editCustomBlock(b.id),
+          onDelete: () => deleteCustomBlock(b.id),
+          onDescriptionChange: (desc) => setCustomBlockDescription(b.id, desc),
+        }));
+      });
+    }
+    
+    function renderSidebarItem(opts) {
+      const item = el('div', 'sidebar-item' + (opts.isBeingEdited ? ' being-edited' : ''));
+      item.draggable = !state.selectionMode;
+      item.addEventListener('dragstart', (e) => {
+        if (state.selectionMode) { e.preventDefault(); return; }
+        opts.onDragStart(e);
+      });
+    
+      const grip = el('div', 'grip');
+      grip.innerHTML = ICONS.grip;
+      item.appendChild(grip);
+    
+      if (opts.icon) {
+        const icon = el('div', 'block-icon');
+        icon.innerHTML = opts.icon;
+        item.appendChild(icon);
+      }
+    
+      const labelBtn = el('button', 'sidebar-item-label');
+      labelBtn.onclick = () => {
+        if (state.selectionMode) return;
+        opts.onAdd();
+      };
+      const nameDiv = el('div', 'name');
+      nameDiv.textContent = opts.label;
+      if (opts.isBeingEdited) {
+        const badge = el('span', 'editing-badge');
+        badge.textContent = 'editing';
+        nameDiv.appendChild(badge);
+      }
+      labelBtn.appendChild(nameDiv);
+      const descDiv = el('div', 'desc' + (opts.isCustom ? ' editable' : ''));
+      descDiv.textContent = opts.description;
+      if (opts.isCustom) {
+        descDiv.title = 'Double-click to edit description';
+        descDiv.addEventListener('click', (e) => e.stopPropagation());
+        descDiv.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          startDescEdit(item, opts, descDiv);
+        });
+      }
+      labelBtn.appendChild(descDiv);
+      item.appendChild(labelBtn);
+    
+      const badges = el('div', 'pin-badges');
+      badges.innerHTML = `<span class="pin-badge pin-badge-in">${opts.inCount} in</span><span class="pin-badge pin-badge-out">${opts.outCount} out</span>`;
+      item.appendChild(badges);
+    
+      if (opts.isCustom) {
+        const actions = el('div', 'sidebar-actions');
+        const renameBtn = el('button', 'action-btn rename', { title: 'Rename' });
+        renameBtn.innerHTML = ICONS.pencil;
+        renameBtn.onclick = (e) => { e.stopPropagation(); startNameEdit(item, opts); };
+        const editBtn = el('button', 'action-btn edit', { title: 'Edit block logic' });
+        editBtn.innerHTML = ICONS.checkSm;
+        editBtn.onclick = (e) => { e.stopPropagation(); opts.onEdit(); };
+        const delBtn = el('button', 'action-btn delete', { title: 'Delete block' });
+        delBtn.innerHTML = ICONS.trashSm;
+        delBtn.onclick = (e) => {
+          e.stopPropagation();
+          showConfirmDialog({
+            title: `Delete "${opts.label}"?`,
+            message: `Any instances of "${opts.label}" on the canvas are also removed. This cannot be undone.`,
+            confirmLabel: 'Delete',
+            destructive: true,
+            onConfirm: () => opts.onDelete(),
+          });
+        };
+        actions.appendChild(renameBtn);
+        actions.appendChild(editBtn);
+        actions.appendChild(delBtn);
+        item.appendChild(actions);
+      }
+    
+      return item;
+    }
+    
+    function startNameEdit(item, opts) {
+      const labelBtn = item.querySelector('.sidebar-item-label');
+      const oldHTML = labelBtn.innerHTML;
+      item.classList.add('editing');
+      labelBtn.innerHTML = '';
+      const input = el('input', 'sidebar-input name-input', { value: opts.label, placeholder: opts.label });
+      input.addEventListener('click', (e) => e.stopPropagation());
+      input.focus();
+      input.select();
+      labelBtn.appendChild(input);
+      const commit = () => {
+        const v = input.value.trim();
+        item.classList.remove('editing');
+        renderSidebar();
+        opts.onRename(v || opts.label);
+      };
+      const cancel = () => { item.classList.remove('editing'); renderSidebar(); };
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') commit(); else if (e.key === 'Escape') cancel(); });
+      input.addEventListener('blur', commit);
+    }
+    
+    function startDescEdit(item, opts, descDiv) {
+      const labelBtn = item.querySelector('.sidebar-item-label');
+      item.classList.add('editing');
+      descDiv.innerHTML = '';
+      const input = el('input', 'sidebar-input mono', { value: opts.description, placeholder: 'Enter description...' });
+      descDiv.appendChild(input);
+      input.focus();
+      input.select();
+      const commit = () => {
+        item.classList.remove('editing');
+        if (opts.onDescriptionChange) opts.onDescriptionChange(input.value);
+      };
+      const cancel = () => { item.classList.remove('editing'); renderSidebar(); };
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') commit(); else if (e.key === 'Escape') cancel(); });
+      input.addEventListener('blur', commit);
+    }
+    
+    function renderBottomBar() {
+      const stats = document.getElementById('bottomStats');
+      const actions = document.getElementById('bottomActions');
+      const isEditing = state.editingBlockId !== null;
+      const isSelecting = state.selectionMode;
+      const editingBlock = state.customBlocks.find(b => b.id === state.editingBlockId);
+    
+      stats.innerHTML = '';
+      const blocksStat = el('span', 'stat');
+      blocksStat.innerHTML = `<span class="num">${state.nodes.length}</span> blocks`;
+      stats.appendChild(blocksStat);
+      stats.appendChild(el('div', 'divider'));
+      const wiresStat = el('span', 'stat');
+      wiresStat.innerHTML = `<span class="num">${state.connections.length}</span> wires`;
+      stats.appendChild(wiresStat);
+      if (isEditing) {
+        stats.appendChild(el('div', 'divider'));
+        const editStat = el('span', 'stat editing-label');
+        editStat.textContent = 'editing ' + (editingBlock ? editingBlock.name : 'block');
+        stats.appendChild(editStat);
+      } else if (isSelecting) {
+        stats.appendChild(el('div', 'divider'));
+        const selectionStat = el('span', 'stat editing-label');
+        selectionStat.textContent = 'selecting block';
+        stats.appendChild(selectionStat);
+      }
+    
+      actions.innerHTML = '';
+      if (isEditing) {
+        const cancelBtn = el('button', 'btn', { title: 'Discard changes and exit edit mode' });
+        cancelBtn.innerHTML = ICONS.xSm + ' Cancel';
+        cancelBtn.onclick = () => cancelEdit();
+        const doneBtn = el('button', 'btn btn-primary', { title: 'Save changes back to this block and return to the canvas' });
+        doneBtn.innerHTML = ICONS.check + ' Done';
+        doneBtn.onclick = () => {
+          const toggles = state.nodes.filter(n => n.kind === 'INPUT');
+          const lamps = state.nodes.filter(n => n.kind === 'OUTPUT');
+          if (toggles.length === 0 && lamps.length === 0) {
+            showToast('Cannot save', 'The block needs at least one toggle (input) or lamp (output).', 'toast-error');
+            return;
+          }
+          saveEditedBlock();
+        };
+        actions.appendChild(cancelBtn);
+        actions.appendChild(doneBtn);
+      } else if (isSelecting) {
+        const cancelBtn = el('button', 'btn', { title: 'Cancel selection mode' });
+        cancelBtn.innerHTML = ICONS.xSm + ' Cancel';
+        cancelBtn.onclick = () => cancelSelectionMode();
+        const doneBtn = el('button', 'btn btn-primary', { title: 'Build a block from the selection' });
+        doneBtn.innerHTML = ICONS.check + ' Done';
+        doneBtn.onclick = () => {
+          if (!state.selectionRect) {
+            showToast('Nothing selected', 'Drag a rectangle to select the circuit you want to build.', 'toast-error');
+            return;
+          }
+          const selectedIds = getNodesInSelectionRect(state.selectionRect);
+          if (selectedIds.size === 0) {
+            showToast('Nothing selected', 'Drag a rectangle to select the circuit you want to build.', 'toast-error');
+            return;
+          }
+          const defaultName = nextBlockName(state.customBlocks);
+          buildSelectedBlock(defaultName, 'Custom Block');
+        };
+        actions.appendChild(cancelBtn);
+        actions.appendChild(doneBtn);
+      } else {
+        const clearBtn = el('button', 'btn', { title: 'Clear the canvas (custom blocks are kept in the sidebar)' });
+        clearBtn.innerHTML = ICONS.trashSm + ' Clear';
+        clearBtn.onclick = () => {
+          if (state.nodes.length === 0 && state.connections.length === 0) return;
+          showConfirmDialog({
+            title: 'Clear canvas?',
+            message: `This removes ${state.nodes.length} node(s) and ${state.connections.length} connection(s) from the canvas. Custom blocks already built are kept in the sidebar.`,
+            confirmLabel: 'Clear',
+            destructive: true,
+            onConfirm: () => {
+              state.nodes = [];
+              state.connections = [];
+              state.pendingFrom = null;
+              wireInternals.clear();
+              state.wireTransit = {};
+              notify();
+              showToast('Canvas cleared');
+            },
+          });
+        };
+        const buildBtn = el('button', 'btn btn-primary', { title: 'Turn the canvas into a reusable block (canvas is cleared after)' });
+        buildBtn.innerHTML = ICONS.hammer + ' Build';
+        buildBtn.onclick = () => {
+          const toggles = state.nodes.filter(n => n.kind === 'INPUT');
+          const lamps = state.nodes.filter(n => n.kind === 'OUTPUT');
+          if (toggles.length === 0 && lamps.length === 0) {
+            showToast('Nothing to build', 'Add at least one toggle (input) or lamp (output) to your circuit.', 'toast-error');
+            return;
+          }
+          showBuildDialog({
+            defaultName: nextBlockName(state.customBlocks),
+            defaultDescription: 'Custom Block',
+            inputCount: toggles.length,
+            outputCount: lamps.length,
+            onBuild: (name, description) => {
+              const id = buildCustomBlock(name, description);
+              if (id) {
+                const def = state.customBlocks.find(b => b.id === id);
+                showToast('Block created', `${def ? def.name : ''} · ${toggles.length} in, ${lamps.length} out`);
+              }
+            },
+          });
+        };
+        actions.appendChild(clearBtn);
+        actions.appendChild(buildBtn);
+      }
+    }
+    
+    /* ============================================================ CANVAS RENDERING */
+    let prevHadNodes = false;
+    
+    function renderSelectionOverlay() {
+      const viewport = document.getElementById('viewport');
+      const world = document.getElementById('world');
+      if (!viewport || !world) return;
+    
+      let overlay = document.getElementById('selectionOverlay');
+      if (!overlay) {
+        overlay = el('div', null, { id: 'selectionOverlay' });
+        overlay.style.position = 'absolute';
+        overlay.style.inset = '0';
+        overlay.style.pointerEvents = 'none';
+        overlay.style.zIndex = '25';
+        overlay.style.overflow = 'hidden';
+        world.appendChild(overlay);
+      }
+    
+      overlay.innerHTML = '';
+      if (!state.selectionMode) {
+        overlay.style.display = 'none';
+        return;
+      }
+    
+      overlay.style.display = 'block';
+      overlay.style.background = 'rgba(0, 0, 0, 0.55)';
+    
+      if (!state.selectionRect) {
+        return;
+      }
+    
+      const rect = state.selectionRect;
+      const overlayLeft = rect.x;
+      const overlayTop = rect.y;
+      const overlayWidth = rect.w;
+      const overlayHeight = rect.h;
+    
+      overlay.style.background = 'transparent';
+    
+      const worldRight = Math.max(0, overlayLeft + overlayWidth);
+      const worldBottom = Math.max(0, overlayTop + overlayHeight);
+    
+      const panels = [
+        { left: 0, top: 0, width: '100%', height: `${Math.max(0, overlayTop)}px` },
+        { left: 0, top: `${Math.max(0, overlayTop)}px`, width: `${Math.max(0, overlayLeft)}px`, height: `${Math.max(0, overlayHeight)}px` },
+        { left: `${Math.max(0, worldRight)}px`, top: `${Math.max(0, overlayTop)}px`, width: `calc(100% - ${Math.max(0, worldRight)}px)`, height: `${Math.max(0, overlayHeight)}px` },
+        { left: 0, top: `${Math.max(0, worldBottom)}px`, width: '100%', height: `calc(100% - ${Math.max(0, worldBottom)}px)` },
+      ];
+    
+      panels.forEach(panel => {
+        const dark = el('div');
+        dark.style.position = 'absolute';
+        dark.style.left = panel.left;
+        dark.style.top = panel.top;
+        dark.style.width = panel.width;
+        dark.style.height = panel.height;
+        dark.style.background = 'rgba(0, 0, 0, 0.55)';
+        dark.style.pointerEvents = 'none';
+        overlay.appendChild(dark);
+      });
+    
+      const box = el('div');
+      box.style.position = 'absolute';
+      box.style.left = `${Math.max(0, overlayLeft)}px`;
+      box.style.top = `${Math.max(0, overlayTop)}px`;
+      box.style.width = `${Math.max(0, overlayWidth)}px`;
+      box.style.height = `${Math.max(0, overlayHeight)}px`;
+      box.style.border = '2px solid rgba(255,255,255,0.85)';
+      box.style.boxShadow = '0 0 0 1px rgba(0,0,0,0.35) inset';
+      box.style.background = 'rgba(255,255,255,0.04)';
+      box.style.borderRadius = '4px';
+      box.style.pointerEvents = 'none';
+      box.style.boxSizing = 'border-box';
+      overlay.appendChild(box);
+    }
+    
+    function renderCanvas() {
+      const viewport = document.getElementById('viewport');
+      const hasNodes = state.nodes.length > 0;
+      viewport.className = 'lb-canvas-bg ' + (hasNodes ? 'scrollable' : 'fixed');
+    
+      // Update world wrapper + world size/transform
+      let wrapper = document.getElementById('worldWrapper');
+      let world = document.getElementById('world');
+      if (!wrapper) {
+        viewport.innerHTML = '';
+        wrapper = el('div', null, { id: 'worldWrapper' });
+        wrapper.style.position = 'relative';
+        world = el('div', null, { id: 'world' });
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.id = 'wireSvg';
+        svg.setAttribute('width', WORLD_WIDTH);
+        svg.setAttribute('height', WORLD_HEIGHT);
+        world.appendChild(svg);
+        wrapper.appendChild(world);
+        viewport.appendChild(wrapper);
+      }
+      wrapper.style.width = (WORLD_WIDTH * state.zoom) + 'px';
+      wrapper.style.height = (WORLD_HEIGHT * state.zoom) + 'px';
+      world.style.width = WORLD_WIDTH + 'px';
+      world.style.height = WORLD_HEIGHT + 'px';
+      world.style.transform = `scale(${state.zoom})`;
+      world.style.transformOrigin = '0 0';
+      world.style.position = 'absolute';
+      world.style.top = '0';
+      world.style.left = '0';
+    
+      // Remove existing nodes (but keep the SVG)
+      const svg = document.getElementById('wireSvg');
+      Array.from(world.children).forEach(c => { if (c !== svg) c.remove(); });
+    
+      // Render wires
+      renderWires();
+    
+      // Render nodes
+      const evalResult = getEvalResult();
+      state.nodes.forEach(n => {
+        const nodeEl = renderNode(n, evalResult);
+        world.appendChild(nodeEl);
+      });
+    
+      // Empty state
+      const emptyState = document.getElementById('emptyState');
+      const isEditing = state.editingBlockId !== null;
+      if (!hasNodes) {
+        emptyState.classList.remove('hidden');
+        emptyState.innerHTML = `<div><div class="empty-title">${isEditing ? 'Empty block' : 'Empty canvas'}</div><div class="empty-body">${isEditing
+          ? 'Drag gates from the sidebar to define this block\'s internal logic. Drag pins into empty space to create <span class="hl">toggles</span> (block inputs) and <span class="hl">lamps</span> (block outputs). Hit <span class="hl">Done</span> when finished.'
+          : 'Drag an <span class="hl">AND</span> or <span class="hl">NOT</span> gate from the left sidebar to get started. Drag output pins into empty space to create lamps; drag input pins into empty space to create toggles. Hit <span class="hl">Build</span> to wrap the whole circuit into a reusable block.'
+        }</div></div>`;
+      } else {
+        emptyState.classList.add('hidden');
+      }
+    
+      // Pending status
+      const pendingStatus = document.getElementById('pendingStatus');
+      pendingStatus.textContent = state.pendingFrom ? 'click a target pin or release in empty space · click canvas to cancel' : '';
+    
+      // Zoom controls
+      renderZoomControls();
+      renderSelectionOverlay();
+    
+      // Scroll to middle on first node
+      if (hasNodes && !prevHadNodes) {
+        requestAnimationFrame(() => {
+          const scaledW = WORLD_WIDTH * state.zoom;
+          const scaledH = WORLD_HEIGHT * state.zoom;
+          viewport.scrollTo(Math.max(0, (scaledW - viewport.clientWidth) / 2), Math.max(0, (scaledH - viewport.clientHeight) / 2));
+        });
+        prevHadNodes = true;
+      }
+      if (!hasNodes) prevHadNodes = false;
+    }
+    
+    function renderWires() {
+      const svg = document.getElementById('wireSvg');
+      svg.innerHTML = '';
+      const evalResult = getEvalResult();
+      const wireTransit = state.wireTransit;
+      const pendingFrom = state.pendingFrom;
+    
+      state.connections.forEach(c => {
+        const from = pinGlobalPos(c.fromNode, c.fromPin, 'output');
+        const to = pinGlobalPos(c.toNode, c.toPin, 'input');
+        if (!from || !to) return;
+        const transit = wireTransit[c.id];
+        const sourceVal = (evalResult.nodeOutputs[c.fromNode] && evalResult.nodeOutputs[c.fromNode][c.fromPin]) || false;
+        const powered = transit !== undefined ? transit : sourceVal;
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        hitPath.setAttribute('d', wirePath(from, to));
+        hitPath.setAttribute('stroke', 'transparent');
+        hitPath.setAttribute('stroke-width', '14');
+        hitPath.setAttribute('fill', 'none');
+        hitPath.classList.add('hit');
+        hitPath.onclick = () => removeConnection(c.id);
+        const visPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        visPath.setAttribute('d', wirePath(from, to));
+        visPath.setAttribute('stroke', powered ? 'var(--lb-wire-hot)' : 'var(--lb-wire-cold)');
+        visPath.setAttribute('stroke-width', '2.5');
+        visPath.setAttribute('fill', 'none');
+        if (powered) visPath.style.filter = 'drop-shadow(0 0 4px var(--lb-pin-active))';
+        g.appendChild(hitPath);
+        g.appendChild(visPath);
+        svg.appendChild(g);
+      });
+    
+      if (pendingFrom) {
+        const start = pinGlobalPos(pendingFrom.nodeId, pendingFrom.pinId, pendingFrom.kind);
+        if (start && pendingCursor) {
+          const pendingIsPowered = pendingFrom.kind === 'output'
+            ? ((evalResult.nodeOutputs[pendingFrom.nodeId] && evalResult.nodeOutputs[pendingFrom.nodeId][pendingFrom.pinId]) || false)
+            : ((evalResult.nodeInputs[pendingFrom.nodeId] && evalResult.nodeInputs[pendingFrom.nodeId][pendingFrom.pinId]) || false);
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', wirePath(start, pendingCursor));
+          path.setAttribute('stroke', pendingIsPowered ? 'var(--lb-wire-hot)' : 'var(--lb-wire-cold)');
+          path.setAttribute('stroke-width', '2.5');
+          path.setAttribute('stroke-dasharray', '6 4');
+          path.setAttribute('fill', 'none');
+          if (pendingIsPowered) path.style.filter = 'drop-shadow(0 0 4px var(--lb-pin-active))';
+          svg.appendChild(path);
+        }
+      }
+    }
+    
+    function pinGlobalPos(nodeId, pinId, kind) {
+      const node = state.nodes.find(n => n.id === nodeId);
+      if (!node) return null;
+      if (kind === 'output') {
+        const idx = node.outputs.findIndex(p => p.id === pinId);
+        if (idx < 0) return null;
+        return outputPinPos(node, idx);
+      } else {
+        const idx = node.inputs.findIndex(p => p.id === pinId);
+        if (idx < 0) return null;
+        return inputPinPos(node, idx);
+      }
+    }
+    
+    function renderNode(node, evalResult) {
+      const powered = {
+        inputs: evalResult.nodeInputs[node.id] || {},
+        outputs: evalResult.nodeOutputs[node.id] || {},
+      };
+      const w = nodeWidth(node);
+      const h = nodeHeight(node);
+      const isTerminal = node.kind === 'INPUT' || node.kind === 'OUTPUT';
+      const headerH = isTerminal ? TERMINAL_HEADER_HEIGHT : HEADER_HEIGHT;
+    
+      let headerLabel = '';
+      if (node.kind === 'AND') headerLabel = 'AND';
+      else if (node.kind === 'NOT') headerLabel = 'NOT';
+      else if (node.kind === 'INPUT') headerLabel = 'Toggle';
+      else if (node.kind === 'OUTPUT') headerLabel = 'Lamp';
+      else if (node.kind === 'CUSTOM') {
+        const def = state.customBlocks.find(b => b.id === node.defId);
+        headerLabel = def ? def.name : (node.name || 'Block');
+      }
+    
+      const nodeEl = el('div', 'node' + (draggingOverSidebarNode === node.id ? ' dragging-over-sidebar' : ''));
+      nodeEl.style.left = node.position.x + 'px';
+      nodeEl.style.top = node.position.y + 'px';
+      nodeEl.style.width = w + 'px';
+      nodeEl.dataset.nodeId = node.id;
+      if (draggingOverSidebarNode === node.id) nodeEl.style.zIndex = '1000';
+    
+      const body = el('div', 'node-body');
+      body.style.width = w + 'px';
+      body.addEventListener('mousedown', (e) => handleBodyMouseDown(e, node));
+    
+      const header = el('div', 'node-header' + (isTerminal ? ' terminal' : ''));
+      header.style.height = headerH + 'px';
+      const labelSpan = el('span', 'label');
+      labelSpan.textContent = headerLabel;
+      header.appendChild(labelSpan);
+      const delBtn = el('button', 'delete-btn', { 'aria-label': 'Delete node', title: 'Delete' });
+      delBtn.innerHTML = isTerminal ? ICONS.trashSm : ICONS.trash;
+      delBtn.onclick = (e) => { e.stopPropagation(); removeNode(node.id); };
+      delBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+      header.appendChild(delBtn);
+      body.appendChild(header);
+    
+      if (node.kind === 'INPUT') {
+        body.appendChild(renderToggleBody(node));
+      } else if (node.kind === 'OUTPUT') {
+        body.appendChild(renderLampBody(powered.inputs['in'] || false));
+      }
+    
+      if (!isTerminal) {
+        const pinRows = el('div', null);
+        pinRows.style.position = 'relative';
+        pinRows.style.height = (h - HEADER_HEIGHT - 8) + 'px';
+        pinRows.appendChild(renderPinList(node.inputs, 'left', powered.inputs));
+        pinRows.appendChild(renderPinList(node.outputs, 'right', powered.outputs));
+        body.appendChild(pinRows);
+      }
+    
+      if (isTerminal) {
+        body.appendChild(renderTerminalRename(node, headerLabel));
+      }
+    
+      nodeEl.appendChild(body);
+    
+      // Pin dots
+      if (!isTerminal) {
+        nodeEl.appendChild(renderPinDots(node.inputs, 'left', powered.inputs, node.id, HEADER_HEIGHT));
+        nodeEl.appendChild(renderPinDots(node.outputs, 'right', powered.outputs, node.id, HEADER_HEIGHT));
+      }
+      if (node.kind === 'INPUT') {
+        nodeEl.appendChild(renderPinDots(node.outputs, 'right', powered.outputs, node.id, TERMINAL_HEADER_HEIGHT, TERMINAL_PIN_Y));
+      }
+      if (node.kind === 'OUTPUT') {
+        nodeEl.appendChild(renderPinDots(node.inputs, 'left', powered.inputs, node.id, TERMINAL_HEADER_HEIGHT, TERMINAL_PIN_Y));
+      }
+    
+      return nodeEl;
+    }
+    
+    function renderPinList(pins, side, poweredMap) {
+      const list = el('div', 'pin-list ' + side);
+      list.style.height = '100%';
+      pins.forEach(p => {
+        const isPowered = poweredMap[p.id] || false;
+        const row = el('div', 'pin-row');
+        row.style.height = PIN_HEIGHT + 'px';
+        const name = el('span', 'pin-name' + (isPowered ? ' powered' : ''));
+        name.textContent = p.name;
+        row.appendChild(name);
+        list.appendChild(row);
+      });
+      return list;
+    }
+    
+    function renderPinDots(pins, side, poweredMap, nodeId, headerHeight, pinY) {
+      const container = document.createDocumentFragment();
+      pins.forEach((p, i) => {
+        const isPowered = poweredMap[p.id] || false;
+        const y = pinY !== undefined ? pinY : headerHeight + i * PIN_HEIGHT + PIN_HEIGHT / 2;
+        const kind = side === 'left' ? 'input' : 'output';
+        const dot = el('div', 'pin-dot' + (isPowered ? ' powered' : ''));
+        dot.dataset.pin = '1';
+        dot.dataset.nodeId = nodeId;
+        dot.dataset.pinId = p.id;
+        dot.dataset.pinKind = kind;
+        dot.style.width = (PIN_RADIUS * 2) + 'px';
+        dot.style.height = (PIN_RADIUS * 2) + 'px';
+        dot.style.top = (y - PIN_RADIUS) + 'px';
+        if (side === 'left') { dot.style.left = (-PIN_RADIUS) + 'px'; }
+        else { dot.style.right = (-PIN_RADIUS) + 'px'; }
+        dot.style.backgroundColor = isPowered ? 'var(--lb-pin-active)' : 'var(--lb-pin)';
+        dot.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          onPinMouseDown(e, nodeId, p.id, kind);
+        });
+        dot.addEventListener('mouseup', (e) => {
+          e.stopPropagation();
+          onPinMouseUp(e, nodeId, p.id, kind);
+        });
+        container.appendChild(dot);
+      });
+      return container;
+    }
+    
+    function renderToggleBody(node) {
+      const on = node.state || false;
+      const wrapper = el('div', 'terminal-body');
+      const btn = el('button', 'toggle-btn' + (on ? ' on' : ''));
+      btn.textContent = on ? 'ON' : 'OFF';
+      btn.onclick = (e) => { e.stopPropagation(); toggleInput(node.id); };
+      btn.addEventListener('mousedown', (e) => e.stopPropagation());
+      wrapper.appendChild(btn);
+      return wrapper;
+    }
+    
+    function renderLampBody(powered) {
+      const wrapper = el('div', 'terminal-body');
+      const body = el('div', 'lamp-body' + (powered ? ' powered' : ''));
+      const indicator = el('div', 'lamp-indicator' + (powered ? ' powered' : ''));
+      body.appendChild(indicator);
+      wrapper.appendChild(body);
+      return wrapper;
+    }
+    
+    function renderTerminalRename(node, headerLabel) {
+      const wrapper = el('div', 'terminal-rename');
+      // We'll just show the name as a button - double-click to edit
+      const btn = el('button', 'rename-display');
+      btn.textContent = node.name || headerLabel;
+      btn.title = 'Double-click to rename';
+      btn.ondblclick = (e) => { e.stopPropagation(); startTerminalRename(wrapper, node, headerLabel); };
+      btn.onclick = (e) => e.stopPropagation();
+      btn.addEventListener('mousedown', (e) => e.stopPropagation());
+      wrapper.appendChild(btn);
+      return wrapper;
+    }
+    
+    function startTerminalRename(wrapper, node, headerLabel) {
+      wrapper.innerHTML = '';
+      const row = el('div', 'rename-row');
+      const input = el('input', 'rename-input', { value: node.name || '' });
+      row.appendChild(input);
+      const confirmBtn = el('button', 'confirm-btn');
+      confirmBtn.innerHTML = ICONS.checkSm;
+      const cancelBtn = el('button', 'cancel-btn');
+      cancelBtn.innerHTML = ICONS.xSm;
+      row.appendChild(confirmBtn);
+      row.appendChild(cancelBtn);
+      wrapper.appendChild(row);
+      input.focus();
+      input.select();
+      const commit = () => { const v = input.value.trim(); renameNode(node.id, v || headerLabel); };
+      const cancel = () => { renderCanvas(); };
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') commit(); else if (e.key === 'Escape') cancel(); });
+      confirmBtn.onclick = commit;
+      cancelBtn.onclick = cancel;
+      input.addEventListener('blur', commit);
+    }
+    
+    function renderZoomControls() {
+      const zc = document.getElementById('zoomControls');
+      zc.innerHTML = '';
+      const outBtn = el('button', 'zoom-btn', { title: 'Zoom out', 'aria-label': 'Zoom out' });
+      outBtn.innerHTML = ICONS.zoomOut;
+      outBtn.onclick = () => setZoom(state.zoom / 1.2);
+      const labelBtn = el('button', 'zoom-label', { title: 'Reset zoom to 100% and center' });
+      labelBtn.textContent = Math.round(state.zoom * 100) + '%';
+      labelBtn.onclick = handleZoomReset;
+      const inBtn = el('button', 'zoom-btn', { title: 'Zoom in', 'aria-label': 'Zoom in' });
+      inBtn.innerHTML = ICONS.zoomIn;
+      inBtn.onclick = () => setZoom(state.zoom * 1.2);
+      const resetBtn = el('button', 'zoom-btn', { title: 'Reset view', 'aria-label': 'Reset view' });
+      resetBtn.innerHTML = ICONS.maximize;
+      resetBtn.onclick = handleZoomReset;
+      zc.appendChild(outBtn);
+      zc.appendChild(labelBtn);
+      zc.appendChild(inBtn);
+      zc.appendChild(resetBtn);
+    }
+    
+    function handleZoomReset() {
+      setZoom(1);
+      const vp = document.getElementById('viewport');
+      if (vp) {
+        vp.scrollTo(
+          Math.max(0, (WORLD_WIDTH - vp.clientWidth) / 2),
+          Math.max(0, (WORLD_HEIGHT - vp.clientHeight) / 2)
+        );
+      }
+    }
+    
+    /* ============================================================ EVENT HANDLERS */
+    let pendingCursor = null;
+    let draggingOverSidebarNode = null;
+    
+    function screenToWorld(clientX, clientY) {
+      const world = document.getElementById('world');
+      if (!world) return { x: 0, y: 0 };
+      const r = world.getBoundingClientRect();
+      return { x: (clientX - r.left) / state.zoom, y: (clientY - r.top) / state.zoom };
+    }
+    
+    function isOverSidebar(clientX, clientY) {
+      const sb = document.getElementById('sidebar');
+      if (!sb) return false;
+      const r = sb.getBoundingClientRect();
+      return clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom;
+    }
+    
+    function onPinMouseDown(e, nodeId, pinId, kind) {
+      e.stopPropagation();
+      startPending(nodeId, pinId, kind);
+    }
+    
+    function onPinMouseUp(e, nodeId, pinId, kind) {
+      e.stopPropagation();
+      completePending(nodeId, pinId, kind);
+    }
+    
+    let lastCursor = { x: 0, y: 0 };
+    
+    function setupCanvasEvents() {
+      const viewport = document.getElementById('viewport');
+    
+      // Drag-and-drop from sidebar
+      viewport.addEventListener('dragover', (e) => {
+        if (state.selectionMode) return;
+        e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; viewport.classList.add('drag-over');
+      });
+      viewport.addEventListener('dragleave', () => viewport.classList.remove('drag-over'));
+      viewport.addEventListener('drop', (e) => {
+        if (state.selectionMode) return;
+        e.preventDefault();
+        viewport.classList.remove('drag-over');
+        const raw = e.dataTransfer.getData('application/json');
+        if (!raw) return;
+        try {
+          const data = JSON.parse(raw);
+          const w = screenToWorld(e.clientX, e.clientY);
+          addNodeFromTemplate(data.kind, { x: w.x - 70, y: w.y - 30 }, data.defId);
+        } catch (err) {}
+      });
+    
+      // Click empty canvas to cancel pending
+      viewport.addEventListener('mousedown', (e) => {
+        if (state.selectionMode) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.button !== 0) return;
+          const startWorld = screenToWorld(e.clientX, e.clientY);
+          state.selectionRect = { x: startWorld.x, y: startWorld.y, w: 1, h: 1 };
+          const dragHandler = (ev) => {
+            const current = screenToWorld(ev.clientX, ev.clientY);
+            const rect = normalizeRect(startWorld.x, startWorld.y, current.x, current.y);
+            state.selectionRect = rect;
+            notify();
+          };
+          const upHandler = () => {
+            if (!state.selectionRect) {
+              window.removeEventListener('mousemove', dragHandler);
+              window.removeEventListener('mouseup', upHandler);
+              return;
+            }
+            state.selectionRect = normalizeRect(
+              state.selectionRect.x,
+              state.selectionRect.y,
+              state.selectionRect.x + state.selectionRect.w,
+              state.selectionRect.y + state.selectionRect.h
+            );
+            window.removeEventListener('mousemove', dragHandler);
+            window.removeEventListener('mouseup', upHandler);
+            notify();
+          };
+          window.addEventListener('mousemove', dragHandler);
+          window.addEventListener('mouseup', upHandler);
+          return;
+        }
+        if (state.pendingFrom) clearPending();
+      });
+    
+      // Ctrl+scroll to zoom
+      viewport.addEventListener('wheel', (e) => {
+        if (!(e.ctrlKey || e.metaKey)) return;
+        e.preventDefault();
+        const delta = -e.deltaY * 0.0015;
+        setZoom(state.zoom * (1 + delta));
+      }, { passive: false });
+    }
+    
+    function handleBodyMouseDown(e, node) {
+      if (state.selectionMode) return;
+      // Don't start drag if clicking on a pin or interactive element
+      if (e.target.closest('[data-pin]')) return;
+      if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+      e.preventDefault();
+      const start = { startX: e.clientX, startY: e.clientY, nodeX: node.position.x, nodeY: node.position.y };
+    
+      function onMove(ev) {
+        const dx = (ev.clientX - start.startX) / state.zoom;
+        const dy = (ev.clientY - start.startY) / state.zoom;
+        const overSidebar = isOverSidebar(ev.clientX, ev.clientY);
+        if (overSidebar !== (draggingOverSidebarNode === node.id)) {
+          draggingOverSidebarNode = overSidebar ? node.id : null;
+          renderCanvas();
+        }
+        if (!overSidebar) {
+          moveNode(node.id, { x: start.nodeX + dx, y: start.nodeY + dy });
+        }
+      }
+      function onUp(ev) {
+        if (isOverSidebar(ev.clientX, ev.clientY)) {
+          removeNode(node.id);
+        }
+        draggingOverSidebarNode = null;
+        renderCanvas();
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    }
+    
+    function setupPendingWireTracking() {
+      // This is set up once; it tracks mouse moves when pendingFrom is active
+      window.addEventListener('mousemove', (e) => {
+        if (state.selectionMode) return;
+        if (!state.pendingFrom) {
+          if (pendingCursor) { pendingCursor = null; renderWires(); }
+          return;
+        }
+        const w = screenToWorld(e.clientX, e.clientY);
+        lastCursor = w;
+        pendingCursor = w;
+        renderWires();
+      });
+      window.addEventListener('mouseup', () => {
+        if (state.selectionMode) return;
+        if (!state.pendingFrom) return;
+        setTimeout(() => {
+          if (!state.pendingFrom) return;
+          const pos = {
+            x: Math.max(8, Math.min(WORLD_WIDTH - 120 - 8, lastCursor.x - 55)),
+            y: Math.max(8, Math.min(WORLD_HEIGHT - 80 - 8, lastCursor.y - 35)),
+          };
+          if (state.pendingFrom.kind === 'output') {
+            createTerminalAt('OUTPUT', { x: pos.x, y: pos.y }, true);
+          } else if (state.pendingFrom.kind === 'input') {
+            createTerminalAt('INPUT', { x: pos.x, y: pos.y }, true);
+          }
+          pendingCursor = null;
+        }, 0);
+      });
+    }
+    
+    /* ============================================================ MAIN RENDER */
+    function renderAll() {
+      renderHeader();
+      renderSidebar();
+      renderBottomBar();
+      renderCanvas();
+    }
+    
+    /* ============================================================ WIRE DELAY RAF LOOP */
+    let rafId = null;
+    function startWireDelayLoop() {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      if (state.wireDelay <= 0) return;
+      const loop = () => {
+        tickWires();
+        if (state.wireDelay > 0) {
+          rafId = requestAnimationFrame(loop);
+        } else {
+          rafId = null;
+        }
+      };
+      rafId = requestAnimationFrame(loop);
+    }
+    
+    /* ============================================================ SAVE AND LOAD */
+    function saveStateToLocalStorage() {
+      const data = {
+        nodes: state.nodes,
+        connections: state.connections,
+        customBlocks: state.customBlocks,
+      };
+      localStorage.setItem('logicBuilderState', JSON.stringify(data));
+    }
+    
+    function loadStateFromLocalStorage() {
+      const raw = localStorage.getItem('logicBuilderState');
+      if (!raw) return;
+      try {
+        const data = JSON.parse(raw);
+        if (data.nodes && data.connections && data.customBlocks) {
+          state.nodes = data.nodes;
+          state.connections = data.connections;
+          state.customBlocks = data.customBlocks;
+          notify();
+        }
+      } catch (err) {}
+    }
+    
+    /* ============================================================ EXPORT AND IMPORT */
+    
+    /*TODO*/
+    
+    /* ============================================================ INIT */
+    function init() {
+      setupCanvasEvents();
+      setupPendingWireTracking();
+      loadStateFromLocalStorage();
+      renderAll();
+      subscribe(() => {
+        saveStateToLocalStorage();
+        renderAll();
+        if (state.wireDelay > 0 && rafId === null) startWireDelayLoop();
+        if (state.wireDelay <= 0 && rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+      });
+    }
+    
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>
