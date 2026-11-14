@@ -39,7 +39,7 @@ def replace_placeholders(template: str, base_dir: Path = src_dir, seen: set[Path
 template = read(root / 'template.txt')
 rendered = replace_placeholders(template)
 
-out_dir = root / 'build'
+out_dir = root / 'docs'
 out_dir.mkdir(exist_ok=True)
 out_dir.joinpath('index.html').write_text(rendered, encoding='utf-8')
 print(f'Wrote {out_dir / "index.html"}')

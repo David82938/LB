@@ -33,6 +33,12 @@ const PIN_HEIGHT = 28;
 const PIN_RADIUS = 7;
 const TERMINAL_PIN_Y = TERMINAL_HEADER_HEIGHT + 14;
 
+const APP_CONFIG = {
+  secretPassword: '4780',
+  secretSettingsDelayMs: 5000,
+  secretUnlockClicks: 5,
+};
+
 function nodeWidth(node) {
   if (node.kind === 'CUSTOM') return NODE_WIDTH_CUSTOM;
   if (node.kind === 'INPUT' || node.kind === 'OUTPUT') return NODE_WIDTH_TERMINAL;
@@ -57,7 +63,7 @@ function outputPinPos(node, pinIndex) {
   }
   return { x: node.position.x + nodeWidth(node), y: node.position.y + HEADER_HEIGHT + pinIndex * PIN_HEIGHT + PIN_HEIGHT / 2 };
 }
-function wirePath(from, to) {
+function wirePath(from, to, fromNodeId, toNodeId) {
   const dx = Math.abs(to.x - from.x);
   const offset = Math.max(40, dx * 0.4);
   const c1x = from.x + offset;
@@ -84,6 +90,9 @@ const state = {
   zoom: 1,
   wireDelay: 0,
   wireTransit: {},
+  settingsSecretReady: false,
+  settingsSecretClickCount: 0,
+  secretWireUnlocked: false,
 };
 
 const subscribers = new Set();
@@ -105,6 +114,12 @@ function makeGate(kind) {
     return {
       inputs: [{ id: 'a', name: 'a', kind: 'input', value: false }],
       outputs: [{ id: 'b', name: 'b', kind: 'output', value: false }],
+    };
+  }
+  if (kind === 'WIRE_REVERSE') {
+    return {
+      inputs: [{ id: 'in', name: 'in', kind: 'input', value: false }],
+      outputs: [{ id: 'out', name: 'out', kind: 'output', value: false }],
     };
   }
   return { inputs: [], outputs: [] };
@@ -140,6 +155,7 @@ function createNode(kind, position, opts) {
 function evalGate(kind, inputs, def, allDefs) {
   if (kind === 'AND') return [inputs[0] && inputs[1]];
   if (kind === 'NOT') return [!inputs[0]];
+  if (kind === 'WIRE_REVERSE') return [inputs[0] || false];
   if (kind === 'INPUT') return [];
   if (kind === 'OUTPUT') return [];
   if (kind === 'CUSTOM' && def) {
@@ -623,6 +639,9 @@ function resetGame() {
   state.zoom = 1;
   state.wireDelay = 0;
   state.wireTransit = {};
+  state.settingsSecretReady = false;
+  state.settingsSecretClickCount = 0;
+  state.secretWireUnlocked = false;
   notify();
 }
 
@@ -741,6 +760,91 @@ function showBuildDialog({ defaultName, defaultDescription, inputCount, outputCo
   return dlg;
 }
 
+function resetSecretSidebarTrigger() {
+  state.settingsSecretReady = false;
+  state.settingsSecretClickCount = 0;
+  const sidebarHeader = document.getElementById('sidebarHeaderIcon');
+  if (sidebarHeader) {
+    sidebarHeader.classList.remove('secret-ready');
+    sidebarHeader.style.cursor = '';
+    sidebarHeader.title = 'Blocks';
+    sidebarHeader.onclick = null;
+  }
+}
+
+function revealSecretSidebar() {
+  const sidebarHeader = document.getElementById('sidebarHeaderIcon');
+  if (!sidebarHeader) return;
+  state.settingsSecretReady = true;
+  sidebarHeader.classList.add('secret-ready');
+  sidebarHeader.style.cursor = 'pointer';
+  sidebarHeader.title = 'Secret block vault';
+  sidebarHeader.onclick = () => {
+    if (!state.settingsSecretReady) return;
+    state.settingsSecretClickCount += 1;
+    const remaining = APP_CONFIG.secretUnlockClicks - state.settingsSecretClickCount;
+    if (state.settingsSecretClickCount >= APP_CONFIG.secretUnlockClicks) {
+      state.settingsSecretClickCount = 0;
+      showSecretPasswordDialog();
+      return;
+    }
+  };
+}
+
+function showSecretPasswordDialog() {
+  const body = document.createElement('div');
+  body.innerHTML = `
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input class="form-input mono" id="secretPasswordInput" type="password" placeholder="Enter password" autocomplete="off">
+      <div class="form-hint">This hidden vault unlocks the reverse-wire block.</div>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-sm" id="secretCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="secretUnlockBtn">Unlock</button>
+    </div>
+  `;
+  const dlg = showDialog({ title: 'Secret vault', body, maxWidth: 'small' });
+  const input = body.querySelector('#secretPasswordInput');
+  const cancelBtn = body.querySelector('#secretCancelBtn');
+  const unlockBtn = body.querySelector('#secretUnlockBtn');
+  const submit = () => {
+    const value = input.value.trim();
+    if (value === APP_CONFIG.secretPassword) {
+      state.secretWireUnlocked = true;
+      dlg.close();
+      renderSidebar();
+      showToast('Unlocked', 'The reverse-wire block has been added to the sidebar.');
+      return;
+    }
+    showToast('Incorrect password', 'The vault stays sealed.', 'toast-error');
+    input.value = '';
+    input.focus();
+  };
+  cancelBtn.onclick = () => dlg.close();
+  unlockBtn.onclick = submit;
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+  setTimeout(() => input.focus(), 0);
+}
+
+function startSettingsSecretTimer() {
+  const resetTimer = () => {
+    clearTimeout(window.__lbSecretSettingsTimer);
+    window.__lbSecretSettingsTimer = setTimeout(() => {
+      revealSecretSidebar();
+    }, APP_CONFIG.secretSettingsDelayMs);
+  };
+  const handlers = [
+    ['pointerdown', resetTimer],
+    ['keydown', resetTimer],
+    ['mousemove', resetTimer],
+    ['input', resetTimer],
+  ];
+  window.__lbSecretSettingsHandlers = handlers;
+  handlers.forEach(([eventName, handler]) => document.body.addEventListener(eventName, handler));
+  resetTimer();
+}
+
 function showSettings() {
   const body = document.createElement('div');
   const wireDelay = state.wireDelay;
@@ -759,6 +863,7 @@ function showSettings() {
     </div>
   `;
   const dlg = showDialog({ title: 'Settings', body });
+  startSettingsSecretTimer();
   const slider = body.querySelector('#delaySlider');
   const delayValue = body.querySelector('#delayValue');
   slider.addEventListener('input', (e) => {
@@ -775,9 +880,22 @@ function showSettings() {
       destructive: true,
       onConfirm: () => {
         resetGame();
+        resetSecretSidebarTrigger();
         showToast('Game reset', 'Canvas, custom blocks, and settings cleared.');
       },
     });
+  };
+  const originalClose = dlg.close;
+  dlg.close = () => {
+    clearTimeout(window.__lbSecretSettingsTimer);
+    if (window.__lbSecretSettingsHandlers) {
+      window.__lbSecretSettingsHandlers.forEach(([eventName, handler]) => {
+        document.body.removeEventListener(eventName, handler);
+      });
+      delete window.__lbSecretSettingsHandlers;
+    }
+    resetSecretSidebarTrigger();
+    originalClose();
   };
 }
 
@@ -819,6 +937,10 @@ function renderHeader() {
 
   const sidebarHeader = document.getElementById('sidebarHeaderIcon');
   sidebarHeader.innerHTML = ICONS.boxes + '<h2>Blocks</h2>';
+  sidebarHeader.classList.remove('secret-ready');
+  sidebarHeader.style.cursor = '';
+  sidebarHeader.title = 'Blocks';
+  sidebarHeader.onclick = null;
 }
 
 function renderSidebar() {
@@ -828,6 +950,9 @@ function renderSidebar() {
     { kind: 'AND', label: 'AND', description: 'a · b → c', inCount: 2, outCount: 1 },
     { kind: 'NOT', label: 'NOT', description: '¬a → b', inCount: 1, outCount: 1 },
   ];
+  if (state.secretWireUnlocked) {
+    builtins.push({ kind: 'WIRE_REVERSE', label: 'R-Wire', description: 'right → left', inCount: 1, outCount: 1 });
+  }
   builtins.forEach(item => {
     list.appendChild(renderSidebarItem({
       label: item.label,
@@ -1264,14 +1389,14 @@ function renderWires() {
     const powered = transit !== undefined ? transit : sourceVal;
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    hitPath.setAttribute('d', wirePath(from, to));
+    hitPath.setAttribute('d', wirePath(from, to, c.fromNode, c.toNode));
     hitPath.setAttribute('stroke', 'transparent');
     hitPath.setAttribute('stroke-width', '14');
     hitPath.setAttribute('fill', 'none');
     hitPath.classList.add('hit');
     hitPath.onclick = () => removeConnection(c.id);
     const visPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    visPath.setAttribute('d', wirePath(from, to));
+    visPath.setAttribute('d', wirePath(from, to, c.fromNode, c.toNode));
     visPath.setAttribute('stroke', powered ? 'var(--lb-wire-hot)' : 'var(--lb-wire-cold)');
     visPath.setAttribute('stroke-width', '2.5');
     visPath.setAttribute('fill', 'none');
@@ -1288,7 +1413,7 @@ function renderWires() {
         ? ((evalResult.nodeOutputs[pendingFrom.nodeId] && evalResult.nodeOutputs[pendingFrom.nodeId][pendingFrom.pinId]) || false)
         : ((evalResult.nodeInputs[pendingFrom.nodeId] && evalResult.nodeInputs[pendingFrom.nodeId][pendingFrom.pinId]) || false);
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', wirePath(start, pendingCursor));
+      path.setAttribute('d', wirePath(start, pendingCursor, pendingFrom.nodeId, null));
       path.setAttribute('stroke', pendingIsPowered ? 'var(--lb-wire-hot)' : 'var(--lb-wire-cold)');
       path.setAttribute('stroke-width', '2.5');
       path.setAttribute('stroke-dasharray', '6 4');
@@ -1302,6 +1427,12 @@ function renderWires() {
 function pinGlobalPos(nodeId, pinId, kind) {
   const node = state.nodes.find(n => n.id === nodeId);
   if (!node) return null;
+  if (node.kind === 'WIRE_REVERSE') {
+    if (kind === 'output') {
+      return { x: node.position.x, y: node.position.y + nodeHeight(node) / 2 };
+    }
+    return { x: node.position.x + nodeWidth(node), y: node.position.y + nodeHeight(node) / 2 };
+  }
   if (kind === 'output') {
     const idx = node.outputs.findIndex(p => p.id === pinId);
     if (idx < 0) return null;
@@ -1313,7 +1444,101 @@ function pinGlobalPos(nodeId, pinId, kind) {
   }
 }
 
+function renderSecretWireNode(node, evalResult) {
+  const powered = {
+    inputs: evalResult.nodeInputs[node.id] || {},
+    outputs: evalResult.nodeOutputs[node.id] || {},
+  };
+  const w = nodeWidth(node);
+  const h = nodeHeight(node);
+  const nodeEl = el('div', 'node');
+  nodeEl.style.left = node.position.x + 'px';
+  nodeEl.style.top = node.position.y + 'px';
+  nodeEl.style.width = w + 'px';
+  nodeEl.dataset.nodeId = node.id;
+
+  const body = el('div', 'node-body');
+  body.style.width = w + 'px';
+  body.style.height = h + 'px';
+  body.style.border = '1px solid rgba(255,255,255,0.22)';
+  body.style.background = 'rgba(17, 24, 39, 0.85)';
+  body.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.04) inset';
+  body.addEventListener('mousedown', (e) => handleBodyMouseDown(e, node));
+
+  const header = el('div', 'node-header');
+  header.style.height = HEADER_HEIGHT + 'px';
+  const label = el('span', 'label');
+  label.textContent = 'R-Wire';
+  header.appendChild(label);
+  const delBtn = el('button', 'delete-btn', { 'aria-label': 'Delete node', title: 'Delete' });
+  delBtn.innerHTML = ICONS.trash;
+  delBtn.onclick = (e) => { e.stopPropagation(); removeNode(node.id); };
+  delBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+  header.appendChild(delBtn);
+  body.appendChild(header);
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 140 42');
+  svg.setAttribute('width', '140');
+  svg.setAttribute('height', '42');
+  svg.style.display = 'block';
+  svg.style.margin = '0 auto';
+  svg.style.padding = '6px 0 12px';
+
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  line.setAttribute('d', 'M 12 21 H 128');
+  line.setAttribute('stroke', powered.outputs.out ? 'var(--lb-wire-hot)' : 'var(--lb-wire-cold)');
+  line.setAttribute('stroke-width', '2.5');
+  line.setAttribute('fill', 'none');
+  line.setAttribute('stroke-linecap', 'round');
+  const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  arrow.setAttribute('d', 'M 18 12 L 8 21 L 18 30');
+  arrow.setAttribute('stroke', powered.outputs.out ? 'var(--lb-wire-hot)' : 'var(--lb-wire-cold)');
+  arrow.setAttribute('stroke-width', '2.5');
+  arrow.setAttribute('fill', 'none');
+  arrow.setAttribute('stroke-linecap', 'round');
+  arrow.setAttribute('stroke-linejoin', 'round');
+  svg.appendChild(line);
+  svg.appendChild(arrow);
+  body.appendChild(svg);
+
+  const outputDot = el('div', 'pin-dot' + (powered.outputs.out ? ' powered' : ''));
+  outputDot.dataset.pin = '1';
+  outputDot.dataset.nodeId = node.id;
+  outputDot.dataset.pinId = node.outputs[0].id;
+  outputDot.dataset.pinKind = 'output';
+  outputDot.style.width = (PIN_RADIUS * 2) + 'px';
+  outputDot.style.height = (PIN_RADIUS * 2) + 'px';
+  outputDot.style.left = (-PIN_RADIUS) + 'px';
+  outputDot.style.top = (h / 2 - PIN_RADIUS) + 'px';
+  outputDot.style.backgroundColor = powered.outputs.out ? 'var(--lb-pin-active)' : 'var(--lb-pin)';
+  outputDot.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); onPinMouseDown(e, node.id, node.outputs[0].id, 'output'); });
+  outputDot.addEventListener('mouseup', (e) => { e.stopPropagation(); onPinMouseUp(e, node.id, node.outputs[0].id, 'output'); });
+
+  const inputDot = el('div', 'pin-dot' + (powered.inputs.in ? ' powered' : ''));
+  inputDot.dataset.pin = '1';
+  inputDot.dataset.nodeId = node.id;
+  inputDot.dataset.pinId = node.inputs[0].id;
+  inputDot.dataset.pinKind = 'input';
+  inputDot.style.width = (PIN_RADIUS * 2) + 'px';
+  inputDot.style.height = (PIN_RADIUS * 2) + 'px';
+  inputDot.style.right = (-PIN_RADIUS) + 'px';
+  inputDot.style.top = (h / 2 - PIN_RADIUS) + 'px';
+  inputDot.style.backgroundColor = powered.inputs.in ? 'var(--lb-pin-active)' : 'var(--lb-pin)';
+  inputDot.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); onPinMouseDown(e, node.id, node.inputs[0].id, 'input'); });
+  inputDot.addEventListener('mouseup', (e) => { e.stopPropagation(); onPinMouseUp(e, node.id, node.inputs[0].id, 'input'); });
+
+  nodeEl.appendChild(body);
+  nodeEl.appendChild(outputDot);
+  nodeEl.appendChild(inputDot);
+  return nodeEl;
+}
+
 function renderNode(node, evalResult) {
+  if (node.kind === 'WIRE_REVERSE') {
+    return renderSecretWireNode(node, evalResult);
+  }
+
   const powered = {
     inputs: evalResult.nodeInputs[node.id] || {},
     outputs: evalResult.nodeOutputs[node.id] || {},
