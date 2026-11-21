@@ -1,5 +1,10 @@
 /* ============================================================ STORE ACTIONS */
 function addNodeFromTemplate(kind, position, defId) {
+  if (state.currentPuzzle && ['NOT', 'AND', 'NAND', 'NOR', 'OR', 'XOR', 'XNOR'].includes(kind)
+    && getPuzzleBlockRemaining(kind) <= 0) {
+    showToast('No gates left', `This puzzle has no ${kind} gates remaining.`, 'toast-error');
+    return;
+  }
   if (kind === 'CUSTOM' && defId && defId === state.editingBlockId) return;
   const s = state;
   const finalPos = s.nodes.length === 0

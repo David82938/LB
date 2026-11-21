@@ -48,6 +48,63 @@ function showConfirmDialog({ title, message, confirmLabel, cancelLabel, destruct
   return dlg;
 }
 
+function showRemovePuzzlePacksDialog() {
+  const body = document.createElement('div');
+  body.innerHTML = `
+    <p>Remove all loaded expansion packs?</p>
+    <label class="puzzle-save-option"><input id="deleteExpansionSaves" type="checkbox"> Also delete their saved canvases and solved status</label>
+    <div class="dialog-actions">
+      <button class="btn btn-sm" id="removeExpansionsCancel">Cancel</button>
+      <button class="btn btn-sm btn-destructive" id="removeExpansionsConfirm">Remove expansions</button>
+    </div>
+  `;
+  const dlg = showDialog({ title: 'Remove expansions?', body, maxWidth: 'small' });
+  body.querySelector('#removeExpansionsCancel').onclick = () => dlg.close();
+  body.querySelector('#removeExpansionsConfirm').onclick = () => {
+    const deleteSaves = body.querySelector('#deleteExpansionSaves').checked;
+    dlg.close();
+    removePuzzleExpansions(deleteSaves);
+  };
+}
+
+function showPuzzleSettingsDialog() {
+  const body = document.createElement('div');
+  body.innerHTML = `
+    <section class="puzzle-settings-category">
+      <h3>Expansions</h3>
+      <p>Expansion packs are JSON collections of additional puzzles. Loaded packs stay saved in this browser and appear alongside the built-in puzzles.</p>
+      <div class="puzzle-settings-actions">
+        <button class="btn btn-sm" id="loadPuzzlePackBtn">Load expansion pack</button>
+        <button class="btn btn-sm" id="removePuzzlePacksBtn">Remove expansion packs</button>
+      </div>
+    </section>
+    <section class="puzzle-settings-category dangerous">
+      <h3>Dangerous</h3>
+      <p>Clear every puzzle's solved status and saved canvas. This cannot be undone.</p>
+      <button class="btn btn-sm btn-destructive" id="resetPuzzleProgressBtn">Reset puzzle progress</button>
+    </section>
+  `;
+  const dlg = showDialog({ title: 'Puzzle settings', body, maxWidth: 'medium' });
+  body.querySelector('#loadPuzzlePackBtn').onclick = () => {
+    dlg.close();
+    chooseCustomPuzzlePack();
+  };
+  body.querySelector('#removePuzzlePacksBtn').onclick = () => {
+    dlg.close();
+    showRemovePuzzlePacksDialog();
+  };
+  body.querySelector('#resetPuzzleProgressBtn').onclick = () => {
+    dlg.close();
+    showConfirmDialog({
+      title: 'Reset puzzle progress?',
+      message: 'This clears all solved statuses and saved canvases for every puzzle. This cannot be undone.',
+      confirmLabel: 'Reset progress',
+      destructive: true,
+      onConfirm: resetAllPuzzleProgress,
+    });
+  };
+}
+
 function showBuildDialog({ defaultName, defaultDescription, inputCount, outputCount, onBuild, onCancel }) {
   const body = document.createElement('div');
   body.innerHTML = `
@@ -177,9 +234,51 @@ function startSettingsSecretTimer() {
   resetTimer();
 }
 
+function renderSettingsTruthTable(puzzle) {
+  if (!Array.isArray(puzzle.truth_table)) return '<p class="settings-description">Truth table unavailable.</p>';
+  const headers = Array.from({ length: puzzle.input_count || 0 }, (_, i) => `I${i}`)
+    .concat(Array.from({ length: puzzle.output_count || 0 }, (_, i) => `O${i}`));
+  const rows = puzzle.truth_table.map(row => `<tr>${row.map(value => `<td>${value ? 1 : 0}</td>`).join('')}</tr>`).join('');
+  return `<div class="truth-table-scroll"><table class="truth-table"><thead><tr>${headers.map(value => `<th>${value}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
 function showSettings() {
   const body = document.createElement('div');
   const wireDelay = state.wireDelay;
+  const puzzle = state.currentPuzzle && state.currentPuzzle.puzzle;
+  const projectSettings = puzzle
+    ? `
+      <div class="settings-section">
+        <div class="settings-label"><span>Puzzle truth table</span></div>
+        <p class="settings-description">${puzzle.input_count} input(s) · ${puzzle.output_count} output(s)</p>
+        ${renderSettingsTruthTable(puzzle)}
+      </div>
+    `
+    : `
+      <div class="settings-section">
+        <div class="settings-label"><span>Project file</span></div>
+        <p class="settings-description">Export the current canvas and custom blocks to JSON, or import them from a saved project file.</p>
+        <div class="dialog-actions" style="justify-content:flex-start">
+          <button class="btn btn-sm" id="exportBtn">${ICONS.arrowDown || ''} Export JSON</button>
+          <button class="btn btn-sm btn-primary" id="importBtn">${ICONS.arrowUp || ''} Import JSON</button>
+        </div>
+      </div>
+    `;
+  const resetSettings = puzzle
+    ? `
+      <div class="settings-section">
+        <div class="settings-label"><span>Return to puzzles</span></div>
+        <p class="settings-description">Return to the puzzle list. Your canvas is saved automatically.</p>
+        <button class="btn btn-sm" id="resetBtn">${ICONS.check} Back to puzzles</button>
+      </div>
+    `
+    : `
+      <div class="settings-section">
+        <div class="settings-label"><span>Reset game</span></div>
+        <p class="settings-description">Clears the canvas, removes all custom blocks, and resets settings to defaults. Cannot be undone.</p>
+        <button class="btn btn-sm btn-destructive" id="resetBtn" style="border:1px solid oklch(0.577 0.245 27.325 / 40%); background:oklch(0.577 0.245 27.325 / 10%); color:var(--destructive);">${ICONS.rotate} Reset everything</button>
+      </div>
+    `;
   body.innerHTML = `
     <div class="settings-section">
       <div class="settings-label"><span>Wire delay</span><span class="settings-value" id="delayValue">${wireDelay}ms</span></div>
@@ -188,20 +287,9 @@ function showSettings() {
       <p class="settings-description">Artificial propagation delay added to every wire. At 0ms the circuit is instantaneous; raise the value to watch signals travel through the graph.</p>
     </div>
     <div class="settings-divider"></div>
-    <div class="settings-section">
-      <div class="settings-label"><span>Project file</span></div>
-      <p class="settings-description">Export the current canvas and custom blocks to JSON, or import them from a saved project file.</p>
-      <div class="dialog-actions" style="justify-content:flex-start">
-        <button class="btn btn-sm" id="exportBtn">${ICONS.arrowDown || ''} Export JSON</button>
-        <button class="btn btn-sm btn-primary" id="importBtn">${ICONS.arrowUp || ''} Import JSON</button>
-      </div>
-    </div>
+    ${projectSettings}
     <div class="settings-divider"></div>
-    <div class="settings-section">
-      <div class="settings-label"><span>Reset game</span></div>
-      <p class="settings-description">Clears the canvas, removes all custom blocks, and resets settings to defaults. Cannot be undone.</p>
-      <button class="btn btn-sm btn-destructive" id="resetBtn" style="border:1px solid oklch(0.577 0.245 27.325 / 40%); background:oklch(0.577 0.245 27.325 / 10%); color:var(--destructive);">${ICONS.rotate} Reset everything</button>
-    </div>
+    ${resetSettings}
   `;
   const dlg = showDialog({ title: 'Settings', body });
   startSettingsSecretTimer();
@@ -212,22 +300,29 @@ function showSettings() {
     setWireDelay(v);
     delayValue.textContent = `${v}ms`;
   });
-  body.querySelector('#exportBtn').onclick = exportStateToJson;
-  body.querySelector('#importBtn').onclick = chooseImportJsonFile;
-  body.querySelector('#resetBtn').onclick = () => {
-    dlg.close();
-    showConfirmDialog({
-      title: 'Reset everything?',
-      message: 'This clears the canvas, removes all custom blocks, and resets settings to defaults.\n\nThis cannot be undone.',
-      confirmLabel: 'Reset',
-      destructive: true,
-      onConfirm: () => {
-        resetGame();
-        resetSecretSidebarTrigger();
-        showToast('Game reset', 'Canvas, custom blocks, and settings cleared.');
-      },
-    });
-  };
+  if (!puzzle) {
+    body.querySelector('#exportBtn').onclick = exportStateToJson;
+    body.querySelector('#importBtn').onclick = chooseImportJsonFile;
+    body.querySelector('#resetBtn').onclick = () => {
+      dlg.close();
+      showConfirmDialog({
+        title: 'Reset everything?',
+        message: 'This clears the canvas, removes all custom blocks, and resets settings to defaults.\n\nThis cannot be undone.',
+        confirmLabel: 'Reset',
+        destructive: true,
+        onConfirm: () => {
+          resetGame();
+          resetSecretSidebarTrigger();
+          showToast('Game reset', 'Canvas, custom blocks, and settings cleared.');
+        },
+      });
+    };
+  } else {
+    body.querySelector('#resetBtn').onclick = () => {
+      dlg.close();
+      leavePuzzle();
+    };
+  }
   const originalClose = dlg.close;
   dlg.close = () => {
     clearTimeout(window.__lbSecretSettingsTimer);
@@ -237,6 +332,7 @@ function showSettings() {
       });
       delete window.__lbSecretSettingsHandlers;
     }
+
     resetSecretSidebarTrigger();
     originalClose();
   };

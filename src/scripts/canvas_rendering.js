@@ -127,7 +127,9 @@ function renderCanvas() {
     emptyState.classList.remove('hidden');
     emptyState.innerHTML = `<div><div class="empty-title">${isEditing ? 'Empty block' : 'Empty canvas'}</div><div class="empty-body">${isEditing
       ? 'Drag gates from the sidebar to define this block\'s internal logic. Drag pins into empty space to create <span class="hl">toggles</span> (block inputs) and <span class="hl">lamps</span> (block outputs). Hit <span class="hl">Done</span> when finished.'
-      : 'Drag an <span class="hl">AND</span> or <span class="hl">NOT</span> gate from the left sidebar to get started. Drag output pins into empty space to create lamps; drag input pins into empty space to create toggles. Hit <span class="hl">Build</span> to wrap the whole circuit into a reusable block.'
+      : (state.currentPuzzle
+        ? 'Drag the available gates from the left sidebar to build your circuit. Add toggles and lamps, then hit <span class="hl">Verify</span> to check it against the truth table.'
+        : 'Drag an <span class="hl">AND</span> or <span class="hl">NOT</span> gate from the left sidebar to get started. Drag output pins into empty space to create lamps; drag input pins into empty space to create toggles. Hit <span class="hl">Build</span> to wrap the whole circuit into a reusable block.')
     }</div></div>`;
   } else {
     emptyState.classList.add('hidden');
@@ -329,8 +331,7 @@ function renderNode(node, evalResult) {
   const headerH = isTerminal ? TERMINAL_HEADER_HEIGHT : HEADER_HEIGHT;
 
   let headerLabel = '';
-  if (node.kind === 'AND') headerLabel = 'AND';
-  else if (node.kind === 'NOT') headerLabel = 'NOT';
+  if (['AND', 'NOT', 'NAND', 'NOR', 'OR', 'XOR', 'XNOR'].includes(node.kind)) headerLabel = node.kind;
   else if (node.kind === 'INPUT') headerLabel = 'Toggle';
   else if (node.kind === 'OUTPUT') headerLabel = 'Lamp';
   else if (node.kind === 'CUSTOM') {

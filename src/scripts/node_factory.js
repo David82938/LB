@@ -1,6 +1,6 @@
 /* ============================================================ NODE FACTORY */
 function makeGate(kind) {
-  if (kind === 'AND') {
+  if (kind === 'AND' || kind === 'NAND' || kind === 'OR' || kind === 'NOR' || kind === 'XOR' || kind === 'XNOR') {
     return {
       inputs: [
         { id: 'a', name: 'a', kind: 'input', value: false },

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Logic Builder 1.1 (latest)</title>
+  <title>Logic Builder 2.0</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48dGV4dCB4PSc1MCUnIHk9JzU1JScgZm9udC1mYW1pbHk9J3NhbnMtc2VyaWYnIGZvbnQtd2VpZ2h0PSdib2xkJyBmb250LXNpemU9JzYwJyBmaWxsPScjRkYwMDAwJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJyBkb21pbmFudC1iYXNlbGluZT0nbWlkZGxlJz5MQjwvdGV4dD48L3N2Zz4=">
   <style>
     /* ============================================================ RESET */
@@ -123,6 +123,10 @@
     .sidebar-item:active { cursor: grabbing; }
     .sidebar-item.editing { cursor: text; }
     .sidebar-item.being-edited { border-color: var(--primary); background: oklch(0.577 0.245 27.325 / 10%); }
+    .sidebar-item.inventory-empty { opacity: 0.42; cursor: not-allowed; filter: grayscale(1); }
+    .sidebar-item.inventory-empty:active { cursor: not-allowed; }
+    .inventory-count { position: absolute; z-index: 2; top: -7px; left: -7px; min-width: 22px; height: 22px; padding: 0 5px; border: 1px solid var(--primary); border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: var(--popover); color: var(--foreground); font-size: 10px; font-weight: 700; line-height: 1; }
+    .inventory-empty .inventory-count { border-color: var(--muted-foreground); color: var(--muted-foreground); }
     .sidebar-item .grip { color: oklch(0.708 0 0 / 50%); flex-shrink: 0; }
     .sidebar-item:hover .grip { color: var(--muted-foreground); }
     .sidebar-item .block-icon { color: var(--primary); flex-shrink: 0; }
@@ -357,6 +361,19 @@
     .dialog-body { padding: 16px; }
     .dialog-body p { font-size: 14px; color: var(--muted-foreground); line-height: 1.6; margin-bottom: 20px; white-space: pre-line; }
     .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .puzzle-save-option { display: flex; align-items: flex-start; gap: 8px; margin: -4px 0 20px; font-size: 12px; color: var(--muted-foreground); }
+    .puzzle-save-option input { margin-top: 3px; accent-color: var(--primary); }
+    .puzzle-settings-category + .puzzle-settings-category { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border); }
+    .puzzle-settings-category h3 { margin-bottom: 6px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--primary); }
+    .puzzle-settings-category p { margin-bottom: 12px; font-size: 12px; line-height: 1.6; color: var(--muted-foreground); }
+    .puzzle-settings-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .puzzle-settings-category.dangerous h3 { color: var(--destructive); }
+    .truth-table-scroll { max-width: 100%; overflow-x: auto; }
+    .truth-table { border-collapse: collapse; margin: 8px 0 16px; font-family: monospace; font-size: 12px; }
+    .truth-table th, .truth-table td { min-width: 28px; padding: 4px 8px; text-align: center; border: 1px solid var(--border); }
+    .truth-table th { color: var(--primary); font-weight: 600; }
+    .truth-table-result { margin-bottom: 12px; font-size: 12px; }
+    .truth-table-result > strong { display: block; margin-bottom: 4px; color: var(--foreground); }
     
     /* Build dialog */
     .build-info {
@@ -408,15 +425,70 @@
     @keyframes toast-in { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes toast-out { from { opacity: 1; } to { opacity: 0; transform: translateY(-20px); } }
     
+    /* ============================================================ MODE MENU */
+    .menu-root { height: 100vh; width: 100vw; overflow: auto; background: var(--lb-canvas); }
+    .menu-screen, .mode-screen { min-height: 100%; display: flex; flex-direction: column; align-items: center; }
+    .menu-screen { justify-content: center; padding: 48px 24px; }
+    .menu-brand { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-bottom: 42px; }
+    .menu-brand h1 { font-size: clamp(32px, 5vw, 52px); letter-spacing: -0.03em; }
+    .menu-cpu { width: 72px; height: 72px; display: grid; place-items: center; border: 1px solid oklch(0.577 0.245 27.325 / 45%); border-radius: 18px; color: var(--primary); background: oklch(0.577 0.245 27.325 / 8%); box-shadow: 0 18px 50px rgba(0,0,0,.28); }
+    .menu-cpu svg { width: 38px; height: 38px; }
+    .mode-grid { width: min(760px, 90vw); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .mode-card { min-height: 190px; padding: 24px; text-align: left; border: 1px solid var(--border); border-radius: 14px; background: var(--card); display: flex; flex-direction: column; justify-content: flex-end; transition: transform .18s, border-color .18s, background .18s; }
+    .mode-card:hover { transform: translateY(-4px); border-color: oklch(0.577 0.245 27.325 / 55%); background: oklch(0.577 0.245 27.325 / 7%); }
+    .mode-card strong { font-size: 24px; margin: 8px 0 4px; }
+    .mode-card > span:last-child { color: var(--muted-foreground); }
+    .mode-card-label { color: var(--primary); text-transform: uppercase; font-size: 10px; letter-spacing: 0.12em; }
+    .mode-screen { width: min(1200px, 94vw); margin: 0 auto; padding: 44px 0; }
+    .mode-heading { width: 100%; display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+    .mode-heading h2 { font-size: 34px; }
+    .mode-eyebrow { color: var(--primary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 4px; }
+    .mode-back { width: auto; }
+    .puzzle-heading-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+    .puzzle-grid { width: 100%; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+    .puzzle-card { position: relative; width: 100%; min-width: 0; height: 190px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 12px; background: var(--card); display: flex; align-items: center; justify-content: center; padding: 38px 18px 18px; transition: transform .18s, border-color .18s, background .18s; }
+    .puzzle-card:hover { transform: translateY(-4px); border-color: oklch(0.577 0.245 27.325 / 55%); background: oklch(0.577 0.245 27.325 / 7%); }
+    .puzzle-card.puzzle-solved { border-color: var(--primary); box-shadow: 0 0 18px oklch(0.577 0.245 27.325 / 35%), inset 0 0 18px oklch(0.577 0.245 27.325 / 8%); }
+    .puzzle-card.puzzle-solved:hover { box-shadow: 0 0 24px oklch(0.577 0.245 27.325 / 55%), inset 0 0 18px oklch(0.577 0.245 27.325 / 12%); }
+    .puzzle-card .puzzle-number { position: absolute; top: 12px; left: 12px; width: 34px; height: 34px; border: 1px solid var(--border); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; color: var(--foreground); font-size: 14px; }
+    .puzzle-card strong { font-size: 20px; }
+    .puzzle-solved-label { position: absolute; right: 12px; top: 18px; color: var(--primary); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+    .puzzle-status-label { color: var(--primary); }
+    .puzzle-empty { width: 100%; min-height: 190px; border-radius: 12px; }
+    
+    /* ============================================================ PUZZLE PACKS */
+    .puzzle-packs { width: 100%; display: flex; flex-direction: column; gap: 48px; }
+    .puzzle-pack { width: 100%; }
+    .puzzle-section { width: 100%; margin-bottom: 48px; }
+    .puzzle-section:last-child { margin-bottom: 0; }
+    .puzzle-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+    .puzzle-section h3 { margin: 0; font-size: 20px; }
+    .puzzle-section-progress { display: flex; align-items: center; gap: 10px; color: var(--muted-foreground); font-size: 11px; white-space: nowrap; }
+    .puzzle-progress-track { width: 88px; height: 6px; overflow: hidden; border-radius: 999px; background: oklch(1 0 0 / 10%); }
+    .puzzle-progress-track > span { display: block; height: 100%; border-radius: inherit; background: var(--primary); transition: width .2s ease; }
+    @media (max-width: 760px) {
+      .mode-heading { align-items: flex-start; flex-direction: column; gap: 16px; }
+      .puzzle-heading-actions { justify-content: flex-start; }
+      .puzzle-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 520px) {
+      .puzzle-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 360px) {
+      .puzzle-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+    
     /* ============================================================ MISC */
     .hidden { display: none !important; }
     .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .menu-link { cursor: pointer; border-radius: 6px; padding: 4px 6px; margin-left: -6px; transition: background .15s; }
+    .menu-link:hover { background: oklch(1 0 0 / 6%); }
   </style>
 </head>
 <body>
   <div id="app">
     <header id="header">
-      <div class="header-left">
+      <div class="header-left" id="headerBrand">
         <svg xmlns="http://w3.org" viewBox="10.5 10.5 3 3" width="24" height="24"><rect x="11.25" y="11.25" width="1.5" height="1.5" rx="0.2" fill="none" stroke="#e7000b" stroke-width="0.25"/><rect x="11.7" y="11.7" width="0.6" height="0.6" rx="0.1" fill="#e7000b" opacity="0.2"/><rect x="11.7" y="11.7" width="0.6" height="0.6" rx="0.1" fill="none" stroke="#e7000b" stroke-width="0.15"/><g stroke="#e7000b" stroke-width="0.25" stroke-linecap="round"><line x1="11.6" y1="10.7" x2="11.6" y2="11"/><line x1="12" y1="10.7" x2="12" y2="11"/><line x1="12.4" y1="10.7" x2="12.4" y2="11"/><line x1="11.6" y1="13" x2="11.6" y2="13.3"/><line x1="12" y1="13" x2="12" y2="13.3"/><line x1="12.4" y1="13" x2="12.4" y2="13.3"/><line x1="10.7" y1="11.6" x2="11" y2="11.6"/><line x1="10.7" y1="12" x2="11" y2="12"/><line x1="10.7" y1="12.4" x2="11" y2="12.4"/><line x1="13" y1="11.6" x2="13.3" y2="11.6"/><line x1="13" y1="12" x2="13.3" y2="12"/><line x1="13" y1="12.4" x2="13.3" y2="12.4"/></g></svg>
         <!-- <div class="logo">&gt;_</div> -->
         <h1>Logic Builder</h1>
@@ -443,6 +515,7 @@
       <div class="bottom-actions" id="bottomActions"></div>
     </footer>
   </div>
+  <div id="menuRoot" class="menu-root"></div>
   <div id="dialogRoot"></div>
   <div id="toastRoot"></div>
   <script>
@@ -468,7 +541,6 @@
       xSm: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`,
       trashSm: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
     };
-    
     /* ============================================================ CONSTANTS */
     const WORLD_WIDTH = 6000;
     const WORLD_HEIGHT = 4500;
@@ -518,7 +590,6 @@
       const c2x = to.x - offset;
       return `M ${from.x},${from.y} C ${c1x},${from.y} ${c2x},${to.y} ${to.x},${to.y}`;
     }
-    
     /* ============================================================ STATE */
     let _idCounter = 1;
     function uid(prefix) { _idCounter += 1; return `${prefix}_${Date.now().toString(36)}_${_idCounter}`; }
@@ -526,6 +597,7 @@
     const wireInternals = new Map();
     
     const state = {
+      view: 'menu',
       nodes: [],
       connections: [],
       customBlocks: [],
@@ -541,15 +613,41 @@
       settingsSecretReady: false,
       settingsSecretClickCount: 0,
       secretWireUnlocked: false,
+      puzzlePacks: [],
+      puzzlePackLoadStatus: 'loading',
+      currentPuzzle: null,
+      currentPuzzleId: null,
+      puzzleProgress: {},
+      sandboxSnapshot: null,
     };
     
     const subscribers = new Set();
     function subscribe(fn) { subscribers.add(fn); return () => subscribers.delete(fn); }
     function notify() { subscribers.forEach(fn => fn()); }
     
+    function showMainMenu() {
+      closeAllDialogs();
+      state.view = 'menu';
+      notify();
+    }
+    
+    function showPuzzleMenu() {
+      if (state.currentPuzzle) {
+        leavePuzzle();
+        return;
+      }
+      state.view = 'puzzles';
+      notify();
+    }
+    
+    function showSandbox() {
+      if (state.currentPuzzle) leavePuzzle(false);
+      state.view = 'sandbox';
+      notify();
+    }
     /* ============================================================ NODE FACTORY */
     function makeGate(kind) {
-      if (kind === 'AND') {
+      if (kind === 'AND' || kind === 'NAND' || kind === 'OR' || kind === 'NOR' || kind === 'XOR' || kind === 'XNOR') {
         return {
           inputs: [
             { id: 'a', name: 'a', kind: 'input', value: false },
@@ -598,11 +696,15 @@
         state: kind === 'INPUT' ? false : undefined,
       };
     }
-    
     /* ============================================================ SIMULATION */
     function evalGate(kind, inputs, def, allDefs) {
       if (kind === 'AND') return [inputs[0] && inputs[1]];
       if (kind === 'NOT') return [!inputs[0]];
+      if (kind === 'NAND') return [!(inputs[0] && inputs[1])];
+      if (kind === 'NOR') return [!(inputs[0] || inputs[1])];
+      if (kind === 'OR') return [inputs[0] || inputs[1]];
+      if (kind === 'XOR') return [Boolean(inputs[0]) !== Boolean(inputs[1])];
+      if (kind === 'XNOR') return [Boolean(inputs[0]) === Boolean(inputs[1])];
       if (kind === 'WIRE_REVERSE') return [inputs[0] || false];
       if (kind === 'INPUT') return [];
       if (kind === 'OUTPUT') return [];
@@ -673,7 +775,6 @@
     function getEvalResult() {
       return evaluateGraph(state.nodes, state.connections, undefined, state.customBlocks, state.wireTransit);
     }
-    
     /* ============================================================ WIRE DELAY */
     function tickWires() {
       if (state.wireDelay <= 0) {
@@ -717,9 +818,13 @@
         notify();
       }
     }
-    
     /* ============================================================ STORE ACTIONS */
     function addNodeFromTemplate(kind, position, defId) {
+      if (state.currentPuzzle && ['NOT', 'AND', 'NAND', 'NOR', 'OR', 'XOR', 'XNOR'].includes(kind)
+        && getPuzzleBlockRemaining(kind) <= 0) {
+        showToast('No gates left', `This puzzle has no ${kind} gates remaining.`, 'toast-error');
+        return;
+      }
       if (kind === 'CUSTOM' && defId && defId === state.editingBlockId) return;
       const s = state;
       const finalPos = s.nodes.length === 0
@@ -1092,7 +1197,6 @@
       state.secretWireUnlocked = false;
       notify();
     }
-    
     /* ============================================================ TOASTS */
     const RED_TOAST_STYLE = 'toast-success';
     function showToast(title, description, type) {
@@ -1113,7 +1217,6 @@
     function escapeHtml(s) {
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
-    
     /* ============================================================ DIALOGS */
     function closeAllDialogs() {
       document.getElementById('dialogRoot').innerHTML = '';
@@ -1162,6 +1265,63 @@
       cancelBtn.onclick = () => { dlg.close(); if (onCancel) onCancel(); };
       confirmBtn.onclick = () => { dlg.close(); if (onConfirm) onConfirm(); };
       return dlg;
+    }
+    
+    function showRemovePuzzlePacksDialog() {
+      const body = document.createElement('div');
+      body.innerHTML = `
+        <p>Remove all loaded expansion packs?</p>
+        <label class="puzzle-save-option"><input id="deleteExpansionSaves" type="checkbox"> Also delete their saved canvases and solved status</label>
+        <div class="dialog-actions">
+          <button class="btn btn-sm" id="removeExpansionsCancel">Cancel</button>
+          <button class="btn btn-sm btn-destructive" id="removeExpansionsConfirm">Remove expansions</button>
+        </div>
+      `;
+      const dlg = showDialog({ title: 'Remove expansions?', body, maxWidth: 'small' });
+      body.querySelector('#removeExpansionsCancel').onclick = () => dlg.close();
+      body.querySelector('#removeExpansionsConfirm').onclick = () => {
+        const deleteSaves = body.querySelector('#deleteExpansionSaves').checked;
+        dlg.close();
+        removePuzzleExpansions(deleteSaves);
+      };
+    }
+    
+    function showPuzzleSettingsDialog() {
+      const body = document.createElement('div');
+      body.innerHTML = `
+        <section class="puzzle-settings-category">
+          <h3>Expansions</h3>
+          <p>Expansion packs are JSON collections of additional puzzles. Loaded packs stay saved in this browser and appear alongside the built-in puzzles.</p>
+          <div class="puzzle-settings-actions">
+            <button class="btn btn-sm" id="loadPuzzlePackBtn">Load expansion pack</button>
+            <button class="btn btn-sm" id="removePuzzlePacksBtn">Remove expansion packs</button>
+          </div>
+        </section>
+        <section class="puzzle-settings-category dangerous">
+          <h3>Dangerous</h3>
+          <p>Clear every puzzle's solved status and saved canvas. This cannot be undone.</p>
+          <button class="btn btn-sm btn-destructive" id="resetPuzzleProgressBtn">Reset puzzle progress</button>
+        </section>
+      `;
+      const dlg = showDialog({ title: 'Puzzle settings', body, maxWidth: 'medium' });
+      body.querySelector('#loadPuzzlePackBtn').onclick = () => {
+        dlg.close();
+        chooseCustomPuzzlePack();
+      };
+      body.querySelector('#removePuzzlePacksBtn').onclick = () => {
+        dlg.close();
+        showRemovePuzzlePacksDialog();
+      };
+      body.querySelector('#resetPuzzleProgressBtn').onclick = () => {
+        dlg.close();
+        showConfirmDialog({
+          title: 'Reset puzzle progress?',
+          message: 'This clears all solved statuses and saved canvases for every puzzle. This cannot be undone.',
+          confirmLabel: 'Reset progress',
+          destructive: true,
+          onConfirm: resetAllPuzzleProgress,
+        });
+      };
     }
     
     function showBuildDialog({ defaultName, defaultDescription, inputCount, outputCount, onBuild, onCancel }) {
@@ -1293,9 +1453,51 @@
       resetTimer();
     }
     
+    function renderSettingsTruthTable(puzzle) {
+      if (!Array.isArray(puzzle.truth_table)) return '<p class="settings-description">Truth table unavailable.</p>';
+      const headers = Array.from({ length: puzzle.input_count || 0 }, (_, i) => `I${i}`)
+        .concat(Array.from({ length: puzzle.output_count || 0 }, (_, i) => `O${i}`));
+      const rows = puzzle.truth_table.map(row => `<tr>${row.map(value => `<td>${value ? 1 : 0}</td>`).join('')}</tr>`).join('');
+      return `<div class="truth-table-scroll"><table class="truth-table"><thead><tr>${headers.map(value => `<th>${value}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+    
     function showSettings() {
       const body = document.createElement('div');
       const wireDelay = state.wireDelay;
+      const puzzle = state.currentPuzzle && state.currentPuzzle.puzzle;
+      const projectSettings = puzzle
+        ? `
+          <div class="settings-section">
+            <div class="settings-label"><span>Puzzle truth table</span></div>
+            <p class="settings-description">${puzzle.input_count} input(s) · ${puzzle.output_count} output(s)</p>
+            ${renderSettingsTruthTable(puzzle)}
+          </div>
+        `
+        : `
+          <div class="settings-section">
+            <div class="settings-label"><span>Project file</span></div>
+            <p class="settings-description">Export the current canvas and custom blocks to JSON, or import them from a saved project file.</p>
+            <div class="dialog-actions" style="justify-content:flex-start">
+              <button class="btn btn-sm" id="exportBtn">${ICONS.arrowDown || ''} Export JSON</button>
+              <button class="btn btn-sm btn-primary" id="importBtn">${ICONS.arrowUp || ''} Import JSON</button>
+            </div>
+          </div>
+        `;
+      const resetSettings = puzzle
+        ? `
+          <div class="settings-section">
+            <div class="settings-label"><span>Return to puzzles</span></div>
+            <p class="settings-description">Return to the puzzle list. Your canvas is saved automatically.</p>
+            <button class="btn btn-sm" id="resetBtn">${ICONS.check} Back to puzzles</button>
+          </div>
+        `
+        : `
+          <div class="settings-section">
+            <div class="settings-label"><span>Reset game</span></div>
+            <p class="settings-description">Clears the canvas, removes all custom blocks, and resets settings to defaults. Cannot be undone.</p>
+            <button class="btn btn-sm btn-destructive" id="resetBtn" style="border:1px solid oklch(0.577 0.245 27.325 / 40%); background:oklch(0.577 0.245 27.325 / 10%); color:var(--destructive);">${ICONS.rotate} Reset everything</button>
+          </div>
+        `;
       body.innerHTML = `
         <div class="settings-section">
           <div class="settings-label"><span>Wire delay</span><span class="settings-value" id="delayValue">${wireDelay}ms</span></div>
@@ -1304,11 +1506,9 @@
           <p class="settings-description">Artificial propagation delay added to every wire. At 0ms the circuit is instantaneous; raise the value to watch signals travel through the graph.</p>
         </div>
         <div class="settings-divider"></div>
-        <div class="settings-section">
-          <div class="settings-label"><span>Reset game</span></div>
-          <p class="settings-description">Clears the canvas, removes all custom blocks, and resets settings to defaults. Cannot be undone.</p>
-          <button class="btn btn-sm btn-destructive" id="resetBtn" style="border:1px solid oklch(0.577 0.245 27.325 / 40%); background:oklch(0.577 0.245 27.325 / 10%); color:var(--destructive);">${ICONS.rotate} Reset everything</button>
-        </div>
+        ${projectSettings}
+        <div class="settings-divider"></div>
+        ${resetSettings}
       `;
       const dlg = showDialog({ title: 'Settings', body });
       startSettingsSecretTimer();
@@ -1319,20 +1519,29 @@
         setWireDelay(v);
         delayValue.textContent = `${v}ms`;
       });
-      body.querySelector('#resetBtn').onclick = () => {
-        dlg.close();
-        showConfirmDialog({
-          title: 'Reset everything?',
-          message: 'This clears the canvas, removes all custom blocks, and resets settings to defaults.\n\nThis cannot be undone.',
-          confirmLabel: 'Reset',
-          destructive: true,
-          onConfirm: () => {
-            resetGame();
-            resetSecretSidebarTrigger();
-            showToast('Game reset', 'Canvas, custom blocks, and settings cleared.');
-          },
-        });
-      };
+      if (!puzzle) {
+        body.querySelector('#exportBtn').onclick = exportStateToJson;
+        body.querySelector('#importBtn').onclick = chooseImportJsonFile;
+        body.querySelector('#resetBtn').onclick = () => {
+          dlg.close();
+          showConfirmDialog({
+            title: 'Reset everything?',
+            message: 'This clears the canvas, removes all custom blocks, and resets settings to defaults.\n\nThis cannot be undone.',
+            confirmLabel: 'Reset',
+            destructive: true,
+            onConfirm: () => {
+              resetGame();
+              resetSecretSidebarTrigger();
+              showToast('Game reset', 'Canvas, custom blocks, and settings cleared.');
+            },
+          });
+        };
+      } else {
+        body.querySelector('#resetBtn').onclick = () => {
+          dlg.close();
+          leavePuzzle();
+        };
+      }
       const originalClose = dlg.close;
       dlg.close = () => {
         clearTimeout(window.__lbSecretSettingsTimer);
@@ -1342,11 +1551,11 @@
           });
           delete window.__lbSecretSettingsHandlers;
         }
+    
         resetSecretSidebarTrigger();
         originalClose();
       };
     }
-    
     /* ============================================================ RENDERING */
     function el(tag, className, attrs, children) {
       const e = document.createElement(tag);
@@ -1365,12 +1574,139 @@
       return e;
     }
     
+    function renderMenu() {
+      const app = document.getElementById('app');
+      const menuRoot = document.getElementById('menuRoot');
+      const editorVisible = state.view === 'sandbox' || state.view === 'puzzle';
+      app.classList.toggle('hidden', !editorVisible);
+      menuRoot.classList.toggle('hidden', editorVisible);
+      if (editorVisible) {
+        menuRoot.innerHTML = '';
+        return;
+      }
+    
+      if (state.view === 'puzzles') {
+        let packsHtml = '';
+    
+        if (state.puzzlePackLoadStatus === 'loading') {
+          packsHtml = '<div class="puzzle-empty">Loading puzzles...</div>';
+        } else if (state.puzzlePacks.length === 0) {
+          packsHtml = '<div class="puzzle-empty">No Puzzles</div>';
+        } else {
+          packsHtml = state.puzzlePacks.map(pack => {
+            if (Object.keys(pack.sections).length === 0) {
+              return `
+                <div class="puzzle-pack">
+                  <div class="puzzle-empty">No Puzzles</div>
+                </div>
+              `;
+            }
+            const sections = Object.entries(pack.sections).map(([sectionName, puzzles]) => {
+              const solvedCount = puzzles.reduce((count, puzzle, index) => {
+                const puzzleId = getPuzzleId(pack, sectionName, index, puzzle);
+                return count + (state.puzzleProgress[puzzleId] ? 1 : 0);
+              }, 0);
+              const progress = puzzles.length ? Math.round((solvedCount / puzzles.length) * 100) : 0;
+              const cards = puzzles.length > 0
+                ? puzzles.map((puzzle, index) => {
+                  const puzzleId = getPuzzleId(pack, sectionName, index, puzzle);
+                  const solved = Boolean(state.puzzleProgress[puzzleId]);
+                  return `
+                    <button class="puzzle-card${solved ? ' puzzle-solved' : ''}" type="button" data-puzzle-id="${escapeHtml(puzzleId)}" title="${escapeHtml(puzzle.title)}">
+                      <span class="puzzle-number">${index + 1}</span>
+                      <strong>${escapeHtml(puzzle.title)}</strong>
+                      ${solved ? '<span class="puzzle-solved-label">Solved</span>' : ''}
+                    </button>
+                  `;
+                }).join('')
+                : '<div class="puzzle-empty">No Puzzles</div>';
+    
+              return `
+                <section class="puzzle-section">
+                  <div class="puzzle-section-heading">
+                    <h3>${escapeHtml(sectionName)}</h3>
+                    <div class="puzzle-section-progress">
+                      <span>${solvedCount}/${puzzles.length} solved</span>
+                      <div class="puzzle-progress-track" role="progressbar" aria-label="${escapeHtml(sectionName)} progress" aria-valuemin="0" aria-valuemax="${Math.max(puzzles.length, 1)}" aria-valuenow="${solvedCount}">
+                        <span style="width:${progress}%"></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="puzzle-grid">${cards}</div>
+                </section>
+              `;
+            }).join('');
+    
+            return `
+              <div class="puzzle-pack">
+                ${sections}
+              </div>
+            `;
+          }).join('');
+        }
+    
+        menuRoot.innerHTML = `
+          <div class="mode-screen">
+            <div class="mode-heading">
+              <div>
+                <div class="mode-eyebrow">Logic Builder</div>
+                <h2>Puzzles</h2>
+              </div>
+              <div class="puzzle-heading-actions">
+                <button class="btn" id="puzzleSettingsBtn" type="button">Settings</button>
+                <button class="btn mode-back" id="puzzleBackBtn" type="button">Back to main Menu</button>
+              </div>
+            </div>
+            <div class="puzzle-packs">${packsHtml}</div>
+          </div>
+        `;
+        document.getElementById('puzzleBackBtn').onclick = showMainMenu;
+        document.getElementById('puzzleSettingsBtn').onclick = showPuzzleSettingsDialog;
+        menuRoot.querySelectorAll('.puzzle-card').forEach(btn => {
+          btn.onclick = () => openPuzzle(btn.dataset.puzzleId);
+        });
+        return;
+      }
+    
+      menuRoot.innerHTML = `
+        <div class="menu-screen">
+          <div class="menu-brand">
+            <div class="menu-cpu">${ICONS.cpu}</div>
+            <h1>Logic Builder</h1>
+          </div>
+          <div class="mode-grid">
+            <button class="mode-card" id="sandboxModeBtn" type="button">
+              <span class="mode-card-label">Play</span>
+              <strong>Sandbox Mode</strong>
+              <span>Build and test circuits freely</span>
+            </button>
+            <button class="mode-card" id="puzzleModeBtn" type="button">
+              <span class="mode-card-label">Challenge</span>
+              <strong>Puzzle Mode</strong>
+              <span>Complete Challenges by building a circuit</span>
+            </button>
+          </div>
+        </div>
+      `;
+      document.getElementById('sandboxModeBtn').onclick = showSandbox;
+      document.getElementById('puzzleModeBtn').onclick = showPuzzleMenu;
+    }
+    
     function renderHeader() {
+      const headerBrand = document.getElementById('headerBrand');
+      if (headerBrand) {
+        headerBrand.classList.add('menu-link');
+        headerBrand.onclick = state.currentPuzzle ? showPuzzleMenu : showMainMenu;
+      }
       const headerRight = document.getElementById('headerRight');
       const isEditing = state.editingBlockId !== null;
       const editingBlock = state.customBlocks.find(b => b.id === state.editingBlockId);
       headerRight.innerHTML = '';
-      if (isEditing) {
+      if (state.currentPuzzle) {
+        const indicator = el('div', 'editing-indicator');
+        indicator.textContent = `Puzzle · ${state.currentPuzzle.puzzle.title}`;
+        headerRight.appendChild(indicator);
+      } else if (isEditing) {
         const indicator = el('div', 'editing-indicator');
         indicator.innerHTML = '<span class="editing-dot"></span> editing ' + escapeHtml(editingBlock ? editingBlock.name : 'block') + ' · drag & rewire, then hit Done';
         headerRight.appendChild(indicator);
@@ -1394,21 +1730,44 @@
     function renderSidebar() {
       const list = document.getElementById('sidebarList');
       list.innerHTML = '';
-      const builtins = [
-        { kind: 'AND', label: 'AND', description: 'a · b → c', inCount: 2, outCount: 1 },
-        { kind: 'NOT', label: 'NOT', description: '¬a → b', inCount: 1, outCount: 1 },
-      ];
-      if (state.secretWireUnlocked) {
+      const gateDefinitions = {
+        NOT: { description: '¬a → b', inCount: 1 },
+        AND: { description: 'a · b → c', inCount: 2 },
+        NAND: { description: '¬(a · b) → c', inCount: 2 },
+        NOR: { description: '¬(a ∨ b) → c', inCount: 2 },
+        OR: { description: 'a ∨ b → c', inCount: 2 },
+        XOR: { description: 'a ⊕ b → c', inCount: 2 },
+        XNOR: { description: '¬(a ⊕ b) → c', inCount: 2 },
+      };
+      const puzzleBlocks = state.currentPuzzle ? Object.keys(state.currentPuzzle.blockInventory) : null;
+      const blockKinds = puzzleBlocks || ['AND', 'NOT'];
+      const builtins = blockKinds.map(kind => ({
+        kind,
+        label: kind,
+        description: gateDefinitions[kind].description,
+        inCount: gateDefinitions[kind].inCount,
+        outCount: 1,
+      }));
+      if (!state.currentPuzzle && state.secretWireUnlocked) {
         builtins.push({ kind: 'WIRE_REVERSE', label: 'R-Wire', description: 'right → left', inCount: 1, outCount: 1 });
       }
       builtins.forEach(item => {
+        const remaining = state.currentPuzzle ? getPuzzleBlockRemaining(item.kind) : Infinity;
         list.appendChild(renderSidebarItem({
           label: item.label,
           description: item.description,
           inCount: item.inCount,
           outCount: item.outCount,
-          onAdd: () => addNodeFromTemplate(item.kind, { x: WORLD_WIDTH / 2 - 70, y: WORLD_HEIGHT / 2 - 30 }),
-          onDragStart: (e) => { e.dataTransfer.setData('application/json', JSON.stringify({ kind: item.kind })); e.dataTransfer.effectAllowed = 'copy'; },
+          inventoryCount: state.currentPuzzle ? remaining : undefined,
+          disabled: remaining <= 0,
+          onAdd: () => {
+            if (remaining > 0) addNodeFromTemplate(item.kind, { x: WORLD_WIDTH / 2 - 70, y: WORLD_HEIGHT / 2 - 30 });
+          },
+          onDragStart: (e) => {
+            if (remaining <= 0) { e.preventDefault(); return; }
+            e.dataTransfer.setData('application/json', JSON.stringify({ kind: item.kind }));
+            e.dataTransfer.effectAllowed = 'copy';
+          },
         }));
       });
       state.customBlocks.forEach(b => {
@@ -1437,10 +1796,12 @@
     }
     
     function renderSidebarItem(opts) {
-      const item = el('div', 'sidebar-item' + (opts.isBeingEdited ? ' being-edited' : ''));
-      item.draggable = !state.selectionMode;
+      const item = el('div', 'sidebar-item'
+        + (opts.isBeingEdited ? ' being-edited' : '')
+        + (opts.disabled ? ' inventory-empty' : ''));
+      item.draggable = !state.selectionMode && !opts.disabled;
       item.addEventListener('dragstart', (e) => {
-        if (state.selectionMode) { e.preventDefault(); return; }
+        if (state.selectionMode || opts.disabled) { e.preventDefault(); return; }
         opts.onDragStart(e);
       });
     
@@ -1479,6 +1840,11 @@
       }
       labelBtn.appendChild(descDiv);
       item.appendChild(labelBtn);
+      if (opts.inventoryCount !== undefined) {
+        const count = el('span', 'inventory-count', { title: `${opts.inventoryCount} remaining` });
+        count.textContent = opts.inventoryCount === Infinity ? '∞' : String(opts.inventoryCount);
+        item.appendChild(count);
+      }
     
       const badges = el('div', 'pin-badges');
       badges.innerHTML = `<span class="pin-badge pin-badge-in">${opts.inCount} in</span><span class="pin-badge pin-badge-out">${opts.outCount} out</span>`;
@@ -1566,7 +1932,12 @@
       const wiresStat = el('span', 'stat');
       wiresStat.innerHTML = `<span class="num">${state.connections.length}</span> wires`;
       stats.appendChild(wiresStat);
-      if (isEditing) {
+      if (state.currentPuzzle) {
+        stats.appendChild(el('div', 'divider'));
+        const puzzleStat = el('span', 'stat puzzle-status-label');
+        puzzleStat.textContent = `${state.currentPuzzle.puzzle.title} · ${state.puzzleProgress[state.currentPuzzleId] ? 'Solved' : 'Not solved'}`;
+        stats.appendChild(puzzleStat);
+      } else if (isEditing) {
         stats.appendChild(el('div', 'divider'));
         const editStat = el('span', 'stat editing-label');
         editStat.textContent = 'editing ' + (editingBlock ? editingBlock.name : 'block');
@@ -1617,6 +1988,31 @@
         };
         actions.appendChild(cancelBtn);
         actions.appendChild(doneBtn);
+      } else if (state.currentPuzzle) {
+        const clearBtn = el('button', 'btn', { title: 'Clear the puzzle canvas' });
+        clearBtn.innerHTML = ICONS.trashSm + ' Clear';
+        clearBtn.onclick = () => {
+          if (state.nodes.length === 0 && state.connections.length === 0) return;
+          showConfirmDialog({
+            title: 'Clear canvas?',
+            message: 'This removes all nodes and connections from this puzzle canvas.',
+            confirmLabel: 'Clear',
+            destructive: true,
+            onConfirm: () => {
+              state.nodes = [];
+              state.connections = [];
+              state.pendingFrom = null;
+              wireInternals.clear();
+              state.wireTransit = {};
+              notify();
+            },
+          });
+        };
+        const verifyBtn = el('button', 'btn btn-primary', { title: 'Check the circuit against the puzzle truth table' });
+        verifyBtn.innerHTML = ICONS.check + ' Verify';
+        verifyBtn.onclick = verifyCurrentPuzzle;
+        actions.appendChild(clearBtn);
+        actions.appendChild(verifyBtn);
       } else {
         const clearBtn = el('button', 'btn', { title: 'Clear the canvas (custom blocks are kept in the sidebar)' });
         clearBtn.innerHTML = ICONS.trashSm + ' Clear';
@@ -1665,7 +2061,6 @@
         actions.appendChild(buildBtn);
       }
     }
-    
     /* ============================================================ CANVAS RENDERING */
     let prevHadNodes = false;
     
@@ -1795,7 +2190,9 @@
         emptyState.classList.remove('hidden');
         emptyState.innerHTML = `<div><div class="empty-title">${isEditing ? 'Empty block' : 'Empty canvas'}</div><div class="empty-body">${isEditing
           ? 'Drag gates from the sidebar to define this block\'s internal logic. Drag pins into empty space to create <span class="hl">toggles</span> (block inputs) and <span class="hl">lamps</span> (block outputs). Hit <span class="hl">Done</span> when finished.'
-          : 'Drag an <span class="hl">AND</span> or <span class="hl">NOT</span> gate from the left sidebar to get started. Drag output pins into empty space to create lamps; drag input pins into empty space to create toggles. Hit <span class="hl">Build</span> to wrap the whole circuit into a reusable block.'
+          : (state.currentPuzzle
+            ? 'Drag the available gates from the left sidebar to build your circuit. Add toggles and lamps, then hit <span class="hl">Verify</span> to check it against the truth table.'
+            : 'Drag an <span class="hl">AND</span> or <span class="hl">NOT</span> gate from the left sidebar to get started. Drag output pins into empty space to create lamps; drag input pins into empty space to create toggles. Hit <span class="hl">Build</span> to wrap the whole circuit into a reusable block.')
         }</div></div>`;
       } else {
         emptyState.classList.add('hidden');
@@ -1997,8 +2394,7 @@
       const headerH = isTerminal ? TERMINAL_HEADER_HEIGHT : HEADER_HEIGHT;
     
       let headerLabel = '';
-      if (node.kind === 'AND') headerLabel = 'AND';
-      else if (node.kind === 'NOT') headerLabel = 'NOT';
+      if (['AND', 'NOT', 'NAND', 'NOR', 'OR', 'XOR', 'XNOR'].includes(node.kind)) headerLabel = node.kind;
       else if (node.kind === 'INPUT') headerLabel = 'Toggle';
       else if (node.kind === 'OUTPUT') headerLabel = 'Lamp';
       else if (node.kind === 'CUSTOM') {
@@ -2197,7 +2593,6 @@
         );
       }
     }
-    
     /* ============================================================ EVENT HANDLERS */
     let pendingCursor = null;
     let draggingOverSidebarNode = null;
@@ -2360,15 +2755,15 @@
         }, 0);
       });
     }
-    
     /* ============================================================ MAIN RENDER */
     function renderAll() {
+      renderMenu();
+      if (state.view !== 'sandbox' && state.view !== 'puzzle') return;
       renderHeader();
       renderSidebar();
       renderBottomBar();
       renderCanvas();
     }
-    
     /* ============================================================ WIRE DELAY RAF LOOP */
     let rafId = null;
     function startWireDelayLoop() {
@@ -2384,19 +2779,32 @@
       };
       rafId = requestAnimationFrame(loop);
     }
-    
     /* ============================================================ SAVE AND LOAD */
     function saveStateToLocalStorage() {
+      if (state.view === 'puzzle' && state.currentPuzzleId) {
+        savePuzzleCanvas();
+        return;
+      }
       const data = {
         nodes: state.nodes,
         connections: state.connections,
         customBlocks: state.customBlocks,
       };
-      localStorage.setItem('logicBuilderState', JSON.stringify(data));
+      try {
+        localStorage.setItem('logicBuilderState', JSON.stringify(data));
+      } catch (error) {
+        showToast('Save failed', 'Your sandbox could not be saved to local storage.', 'toast-error');
+      }
     }
     
     function loadStateFromLocalStorage() {
-      const raw = localStorage.getItem('logicBuilderState');
+      let raw;
+      try {
+        raw = localStorage.getItem('logicBuilderState');
+      } catch (error) {
+        showToast('Save unavailable', 'Local storage could not be accessed.', 'toast-error');
+        return;
+      }
       if (!raw) return;
       try {
         const data = JSON.parse(raw);
@@ -2408,16 +2816,871 @@
         }
       } catch (err) {}
     }
-    
     /* ============================================================ EXPORT AND IMPORT */
+    function getExportData() {
+      return {
+        format: 'logic-builder',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        nodes: state.nodes,
+        connections: state.connections,
+        customBlocks: state.customBlocks,
+        wireDelay: state.wireDelay,
+        zoom: state.zoom,
+        secretWireUnlocked: state.secretWireUnlocked,
+      };
+    }
     
-    /*TODO*/
+    function exportStateToJson() {
+      const data = getExportData();
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const date = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `logic-builder-${date}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showToast('Project exported', 'The JSON file has been downloaded.');
+    }
     
+    function isValidImportedState(data) {
+      return data
+        && typeof data === 'object'
+        && Array.isArray(data.nodes)
+        && Array.isArray(data.connections)
+        && Array.isArray(data.customBlocks);
+    }
+    
+    function importStateFromJson(file) {
+      if (!file) return;
+    
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(String(reader.result));
+          if (!isValidImportedState(data)) {
+            throw new Error('Invalid Logic Builder JSON');
+          }
+    
+          wireInternals.clear();
+          state.nodes = data.nodes;
+          state.connections = data.connections;
+          state.customBlocks = data.customBlocks;
+          state.pendingFrom = null;
+          state.editingBlockId = null;
+          state.stashedNodes = [];
+          state.stashedConnections = [];
+          state.selectionMode = false;
+          state.selectionRect = null;
+          state.wireTransit = {};
+          document.body.style.cursor = '';
+    
+          if (Number.isFinite(data.wireDelay)) {
+            state.wireDelay = Math.max(0, Math.min(1000, Math.round(data.wireDelay)));
+          }
+          if (Number.isFinite(data.zoom)) {
+            state.zoom = Math.max(0.25, Math.min(2.5, data.zoom));
+          }
+          if (typeof data.secretWireUnlocked === 'boolean') {
+            state.secretWireUnlocked = data.secretWireUnlocked;
+          }
+    
+          notify();
+          showToast('Project imported', `${data.nodes.length} blocks and ${data.connections.length} wires loaded.`);
+        } catch (error) {
+          showToast('Import failed', 'Choose a valid Logic Builder JSON file.', 'toast-error');
+        }
+      };
+      reader.onerror = () => {
+        showToast('Import failed', 'The selected file could not be read.', 'toast-error');
+      };
+      reader.readAsText(file);
+    }
+    
+    function chooseImportJsonFile() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json,.json';
+      input.style.display = 'none';
+      input.addEventListener('change', () => {
+        importStateFromJson(input.files && input.files[0]);
+      });
+      document.body.appendChild(input);
+      input.click();
+      input.remove();
+    }
+    /* ============================================================ PUZZLE PACKS */
+    const BUILT_IN_PUZZLE_DATA = {
+         "Gate Basics": [
+             {
+                 "title": "Inverter",
+                 "truth_table": [
+                     [0, 1],
+                     [1, 0]
+                 ],
+                 "input_count": 1,
+                 "output_count": 1,
+                 "blocks": {
+                     "not": 1
+                 }
+             },
+             {
+                 "title": "AND-Gate",
+                 "truth_table": [
+                     [0, 0, 0],
+                     [0, 1, 0],
+                     [1, 0, 0],
+                     [1, 1, 1]
+                 ],
+                 "input_count": 2,
+                 "output_count": 1,
+                 "blocks": {
+                     "nand": 1,
+                     "not": 1
+                 }
+             },
+             {
+                 "title": "OR-Gate",
+                 "truth_table": [
+                     [0, 0, 0],
+                     [0, 1, 1],
+                     [1, 0, 1],
+                     [1, 1, 1]
+                 ],
+                 "input_count": 2,
+                 "output_count": 1,
+                 "blocks": {
+                     "nor": 1,
+                     "not": 1
+                 }
+             },
+             {
+                 "title": "NAND-Gate",
+                 "truth_table": [
+                     [0, 0, 1],
+                     [0, 1, 1],
+                     [1, 0, 1],
+                     [1, 1, 0]
+                 ],
+                 "input_count": 2,
+                 "output_count": 1,
+                 "blocks": {
+                     "and": 1,
+                     "not": 1
+                 }
+             },
+             {
+                 "title": "NOR-Gate",
+                 "truth_table": [
+                     [0, 0, 1],
+                     [0, 1, 0],
+                     [1, 0, 0],
+                     [1, 1, 0]
+                 ],
+                 "input_count": 2,
+                 "output_count": 1,
+                 "blocks": {
+                     "or": 1,
+                     "not": 1
+                 }
+             },
+             {
+                 "title": "XOR-Gate",
+                 "truth_table": [
+                     [0, 0, 0],
+                     [0, 1, 1],
+                     [1, 0, 1],
+                     [1, 1, 0]
+                 ],
+                 "input_count": 2,
+                 "output_count": 1,
+                 "blocks": {
+                     "nand": 4
+                 }
+             },
+             {
+                 "title": "XNOR-Gate",
+                 "truth_table": [
+                     [0, 0, 1],
+                     [0, 1, 0],
+                     [1, 0, 0],
+                     [1, 1, 1]
+                 ],
+                 "input_count": 2,
+                 "output_count": 1,
+                 "blocks": {
+                     "xor": 1,
+                     "not": 1
+                 }
+             }
+         ],
+         "Logic": [
+             {
+                 "title": "Implication",
+                 "truth_table": [
+                     [0, 0, 1],
+                     [0, 1, 1],
+                     [1, 0, 0],
+                     [1, 1, 1]
+                 ],
+                 "input_count": 2,
+                 "output_count": 1,
+                 "blocks": {
+                     "not": 1,
+                     "or": 1
+                 }
+             },
+             {
+                 "title": "Two of Three",
+                 "truth_table": [
+                     [0, 0, 0, 0],
+                     [0, 0, 1, 0],
+                     [0, 1, 0, 0],
+                     [0, 1, 1, 1],
+                     [1, 0, 0, 0],
+                     [1, 0, 1, 1],
+                     [1, 1, 0, 1],
+                     [1, 1, 1, 1]
+                 ],
+                 "input_count": 3,
+                 "output_count": 1,
+                 "blocks": {
+                     "and": 3,
+                     "or": 2
+                 }
+             },
+             {
+                 "title": "Exactly One",
+                 "truth_table": [
+                     [0, 0, 0, 0],
+                     [0, 0, 1, 1],
+                     [0, 1, 0, 1],
+                     [0, 1, 1, 0],
+                     [1, 0, 0, 1],
+                     [1, 0, 1, 0],
+                     [1, 1, 0, 0],
+                     [1, 1, 1, 0]
+                 ],
+                 "input_count": 3,
+                 "output_count": 1,
+                 "blocks": {
+                     "not": 3,
+                     "and": 6,
+                     "or": 2
+                 }
+             },
+             {
+                 "title": "Odd Parity",
+                 "truth_table": [
+                     [0, 0, 0, 0],
+                     [0, 0, 1, 1],
+                     [0, 1, 0, 1],
+                     [0, 1, 1, 0],
+                     [1, 0, 0, 1],
+                     [1, 0, 1, 0],
+                     [1, 1, 0, 0],
+                     [1, 1, 1, 1]
+                 ],
+                 "input_count": 3,
+                 "output_count": 1,
+                 "blocks": {
+                     "xor": 2
+                 }
+             },
+             {
+                 "title": "Multiplexer",
+                 "truth_table": [
+                     [0, 0, 0, 0],
+                     [0, 0, 1, 0],
+                     [0, 1, 0, 1],
+                     [0, 1, 1, 0],
+                     [1, 0, 0, 0],
+                     [1, 0, 1, 1],
+                     [1, 1, 0, 1],
+                     [1, 1, 1, 1]
+                 ],
+                 "input_count": 3,
+                 "output_count": 1,
+                 "blocks": {
+                     "not": 1,
+                     "and": 2,
+                     "or": 1
+                 }
+             }
+         ],
+         "Arithmetic": [
+             {
+                 "title": "Half Adder",
+                 "truth_table": [
+                     [0, 0, 0, 0],
+                     [0, 1, 1, 0],
+                     [1, 0, 1, 0],
+                     [1, 1, 0, 1]
+                 ],
+                 "input_count": 2,
+                 "output_count": 2,
+                 "blocks": {
+                     "xor": 1,
+                     "and": 1
+                 }
+             },
+             {
+                 "title": "Full Adder",
+                 "truth_table": [
+                     [0, 0, 0, 0, 0],
+                     [0, 0, 1, 1, 0],
+                     [0, 1, 0, 1, 0],
+                     [0, 1, 1, 0, 1],
+                     [1, 0, 0, 1, 0],
+                     [1, 0, 1, 0, 1],
+                     [1, 1, 0, 0, 1],
+                     [1, 1, 1, 1, 1]
+                 ],
+                 "input_count": 3,
+                 "output_count": 2,
+                 "blocks": {
+                     "xor": 2,
+                     "and": 2,
+                     "or": 1
+                 }
+             },
+             {
+                 "title": "Carry Detector",
+                 "truth_table": [
+                     [0, 0, 0, 0],
+                     [0, 0, 1, 0],
+                     [0, 1, 0, 0],
+                     [0, 1, 1, 1],
+                     [1, 0, 0, 0],
+                     [1, 0, 1, 1],
+                     [1, 1, 0, 1],
+                     [1, 1, 1, 1]
+                 ],
+                 "input_count": 3,
+                 "output_count": 1,
+                 "blocks": {
+                     "and": 3,
+                     "or": 2
+                 }
+             }
+         ],
+         "Cryptic": [
+             {
+                 "title": "The Strange Pattern",
+                 "truth_table": [
+                     [0, 0, 0, 1],
+                     [0, 0, 1, 0],
+                     [0, 1, 0, 1],
+                     [0, 1, 1, 1],
+                     [1, 0, 0, 0],
+                     [1, 0, 1, 1],
+                     [1, 1, 0, 0],
+                     [1, 1, 1, 0]
+                 ],
+                 "input_count": 3,
+                 "output_count": 1,
+                 "blocks": {
+                     "not": 3,
+                     "and": 4,
+                     "or": 2,
+                     "xor": 1
+                 }
+             },
+             {
+                 "title": "The Hidden Rule",
+                 "truth_table": [
+                     [0, 0, 0, 0],
+                     [0, 0, 1, 1],
+                     [0, 1, 0, 0],
+                     [0, 1, 1, 1],
+                     [1, 0, 0, 1],
+                     [1, 0, 1, 0],
+                     [1, 1, 0, 1],
+                     [1, 1, 1, 0]
+                 ],
+                 "input_count": 3,
+                 "output_count": 1,
+                 "blocks": {
+                     "xor": 2,
+                     "not": 1,
+                     "and": 2,
+                     "or": 2
+                 }
+             },
+             {
+                 "title": "Alien Logic",
+                 "truth_table": [
+                     [0, 0, 0, 1],
+                     [0, 0, 1, 1],
+                     [0, 1, 0, 0],
+                     [0, 1, 1, 0],
+                     [1, 0, 0, 0],
+                     [1, 0, 1, 1],
+                     [1, 1, 0, 1],
+                     [1, 1, 1, 0]
+                 ],
+                 "input_count": 3,
+                 "output_count": 1,
+                 "blocks": {
+                     "and": 5,
+                     "or": 3,
+                     "not": 3,
+                     "xor": 2,
+                     "xnor": 1,
+                     "nand": 2,
+                     "nor": 2
+                 }
+             },
+             {
+                 "title": "Unknown Function",
+                 "truth_table": [
+                     [0, 0, 0, 0],
+                     [0, 0, 1, 1],
+                     [0, 1, 0, 1],
+                     [0, 1, 1, 0],
+                     [1, 0, 0, 0],
+                     [1, 0, 1, 1],
+                     [1, 1, 0, 0],
+                     [1, 1, 1, 1]
+                 ],
+                 "input_count": 3,
+                 "output_count": 1,
+                 "blocks": {
+                     "and": 5,
+                     "or": 3,
+                     "not": 3,
+                     "xor": 2,
+                     "xnor": 2,
+                     "nand": 3,
+                     "nor": 3
+                 }
+             }
+         ]
+     };
+    const PUZZLE_PACKS_STORAGE_KEY = 'logicBuilderPuzzlePacks';
+    const PUZZLE_PROGRESS_STORAGE_KEY = 'logicBuilderPuzzleProgress';
+    const PUZZLE_SAVE_PREFIX = 'logicBuilderPuzzleSave:';
+    
+    function normalizePuzzleSections(data) {
+      if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+    
+      if (data.sections && typeof data.sections === 'object' && !Array.isArray(data.sections)) {
+        data = data.sections;
+      }
+    
+      const sections = {};
+      for (const [name, puzzles] of Object.entries(data)) {
+        if (!Array.isArray(puzzles)) continue;
+        sections[name] = puzzles.filter(puzzle => puzzle && typeof puzzle.title === 'string' && puzzle.title.trim())
+          .map(puzzle => ({ ...puzzle, title: puzzle.title.trim() }));
+      }
+      return sections;
+    }
+    
+    function normalizePuzzlePack(data, defaultName, id, isBuiltIn) {
+      if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+    
+      let name = defaultName;
+      if (typeof data.name === 'string' && data.name.trim()) name = data.name.trim();
+      if (typeof data.title === 'string' && data.title.trim()) name = data.title.trim();
+    
+      const sections = normalizePuzzleSections(data);
+      if (!sections) return null;
+    
+      return { id, name, sections, isBuiltIn: Boolean(isBuiltIn) };
+    }
+    
+    function readPuzzleStorage(key, fallback) {
+      let raw;
+      try {
+        raw = localStorage.getItem(key);
+      } catch (error) {
+        showToast('Puzzle storage unavailable', 'Local storage could not be accessed.', 'toast-error');
+        return fallback;
+      }
+      if (!raw) return fallback;
+      try {
+        return JSON.parse(raw);
+      } catch (error) {
+        showToast('Saved data could not be loaded', 'Puzzle storage contains invalid JSON.', 'toast-error');
+        return fallback;
+      }
+    }
+    
+    function loadPuzzleProgress() {
+      const progress = readPuzzleStorage(PUZZLE_PROGRESS_STORAGE_KEY, {});
+      state.puzzleProgress = progress && typeof progress === 'object' && !Array.isArray(progress) ? progress : {};
+      if (progress && (typeof progress !== 'object' || Array.isArray(progress))) {
+        showToast('Puzzle progress invalid', 'Saved puzzle status could not be loaded.', 'toast-error');
+      }
+    }
+    
+    async function loadBuiltInPuzzlePacks() {
+      let data = BUILT_IN_PUZZLE_DATA;
+    
+      try {
+        const response = await fetch('./puzzles.json', { cache: 'no-store' });
+        if (response.ok) data = await response.json();
+      } catch (error) {
+        // Embedded data keeps the built-in pack available for file:// usage.
+      }
+    
+      const builtIn = normalizePuzzlePack(data, 'Built-in', 'builtin', true);
+      const savedPacks = readPuzzleStorage(PUZZLE_PACKS_STORAGE_KEY, []);
+      const expansions = Array.isArray(savedPacks)
+        ? savedPacks.map(pack => {
+          const name = pack && typeof pack.name === 'string' ? pack.name : 'Custom Pack';
+          return normalizePuzzlePack(pack, name, `expansion:${encodeURIComponent(name)}`, false);
+        }).filter(Boolean)
+        : [];
+      if (!Array.isArray(savedPacks)) {
+        showToast('Expansion data invalid', 'Saved puzzle expansions could not be loaded.', 'toast-error');
+      }
+      state.puzzlePacks = [...(builtIn ? [builtIn] : []), ...expansions];
+      state.puzzlePackLoadStatus = builtIn || expansions.length ? 'loaded' : 'empty';
+      notify();
+    }
+    
+    function getPuzzleId(pack, sectionName, index, puzzle) {
+      return JSON.stringify([pack.id, sectionName, index, puzzle.title]);
+    }
+    
+    function findPuzzleById(id) {
+      for (const pack of state.puzzlePacks) {
+        for (const [sectionName, puzzles] of Object.entries(pack.sections)) {
+          for (let index = 0; index < puzzles.length; index++) {
+            const puzzle = puzzles[index];
+            if (getPuzzleId(pack, sectionName, index, puzzle) === id) {
+              return { pack, sectionName, puzzle, id };
+            }
+          }
+        }
+      }
+      return null;
+    }
+    
+    function puzzleSaveKey(id) {
+      return PUZZLE_SAVE_PREFIX + encodeURIComponent(id);
+    }
+    
+    function getPuzzleBlockInventory(puzzle) {
+      const blocks = puzzle.blocks;
+      if (blocks === undefined || blocks === null) return {};
+      if (Array.isArray(blocks)) {
+        const inventory = {};
+        for (const kind of blocks) {
+          const normalizedKind = String(kind).toUpperCase();
+          if (['NOT', 'AND', 'NAND', 'NOR', 'OR', 'XOR', 'XNOR'].includes(normalizedKind)) {
+            inventory[normalizedKind] = Infinity;
+          }
+        }
+        return inventory;
+      }
+      if (typeof blocks !== 'object') return null;
+    
+      const inventory = {};
+      for (const [kind, count] of Object.entries(blocks)) {
+        const normalizedKind = kind.toUpperCase();
+        if (!['NOT', 'AND', 'NAND', 'NOR', 'OR', 'XOR', 'XNOR'].includes(normalizedKind)
+          || !Number.isSafeInteger(count) || count < 0) {
+          return null;
+        }
+        inventory[normalizedKind] = count;
+      }
+      return inventory;
+    }
+    
+    function getPuzzleBlockRemaining(kind) {
+      if (!state.currentPuzzle) return Infinity;
+      const allowed = state.currentPuzzle.blockInventory[kind];
+      if (allowed === undefined) return 0;
+      if (allowed === Infinity) return Infinity;
+      const used = state.nodes.filter(node => node.kind === kind).length;
+      return Math.max(0, allowed - used);
+    }
+    
+    function savePuzzleCanvas() {
+      if (!state.currentPuzzleId) return;
+      const data = { nodes: state.nodes, connections: state.connections };
+      try {
+        localStorage.setItem(puzzleSaveKey(state.currentPuzzleId), JSON.stringify(data));
+      } catch (error) {
+        showToast('Puzzle save failed', 'Your puzzle canvas could not be saved to local storage.', 'toast-error');
+      }
+    }
+    
+    function openPuzzle(id) {
+      const entry = findPuzzleById(id);
+      if (!entry) {
+        showToast('Puzzle unavailable', 'This puzzle could not be found in the loaded packs.', 'toast-error');
+        return;
+      }
+    
+      const blockInventory = getPuzzleBlockInventory(entry.puzzle);
+      if (!blockInventory) {
+        showToast('Invalid puzzle', 'The puzzle block inventory must map supported gate names to non-negative counts.', 'toast-error');
+        return;
+      }
+    
+      state.sandboxSnapshot = {
+        nodes: state.nodes,
+        connections: state.connections,
+        customBlocks: state.customBlocks,
+        zoom: state.zoom,
+      };
+      state.currentPuzzle = { ...entry, blockInventory };
+      state.currentPuzzleId = id;
+      state.view = 'puzzle';
+      const saved = readPuzzleStorage(puzzleSaveKey(id), null);
+      if (saved && Array.isArray(saved.nodes) && Array.isArray(saved.connections)) {
+        state.nodes = saved.nodes;
+        state.connections = saved.connections;
+      } else {
+        if (saved !== null) showToast('Puzzle save invalid', 'This puzzle canvas could not be loaded; a blank canvas was opened.', 'toast-error');
+        state.nodes = [];
+        state.connections = [];
+      }
+      state.customBlocks = [];
+      state.pendingFrom = null;
+      state.zoom = 1;
+      wireInternals.clear();
+      state.wireTransit = {};
+      notify();
+    }
+    
+    function leavePuzzle(returnToPuzzles) {
+      if (!state.currentPuzzle) return;
+      savePuzzleCanvas();
+      const snapshot = state.sandboxSnapshot;
+      state.nodes = snapshot ? snapshot.nodes : [];
+      state.connections = snapshot ? snapshot.connections : [];
+      state.customBlocks = snapshot ? snapshot.customBlocks : [];
+      state.zoom = snapshot ? snapshot.zoom : 1;
+      state.sandboxSnapshot = null;
+      state.currentPuzzle = null;
+      state.currentPuzzleId = null;
+      state.pendingFrom = null;
+      wireInternals.clear();
+      state.wireTransit = {};
+      state.view = returnToPuzzles === false ? 'menu' : 'puzzles';
+      notify();
+    }
+    
+    function persistPuzzleProgress() {
+      try {
+        localStorage.setItem(PUZZLE_PROGRESS_STORAGE_KEY, JSON.stringify(state.puzzleProgress));
+        return true;
+      } catch (error) {
+        showToast('Progress save failed', 'Puzzle progress could not be saved to local storage.', 'toast-error');
+        return false;
+      }
+    }
+    
+    function verifyCurrentPuzzle() {
+      const entry = state.currentPuzzle;
+      if (!entry) return;
+      const puzzle = entry.puzzle;
+      const inputs = state.nodes.filter(node => node.kind === 'INPUT');
+      const outputs = state.nodes.filter(node => node.kind === 'OUTPUT');
+      if (inputs.length !== puzzle.input_count || outputs.length !== puzzle.output_count) {
+        showToast(
+          'Incorrect input or output count',
+          `This puzzle requires ${puzzle.input_count} toggle(s) and ${puzzle.output_count} lamp(s); the canvas has ${inputs.length} and ${outputs.length}.`,
+          'toast-error'
+        );
+        return;
+      }
+    
+      if (!Array.isArray(puzzle.truth_table) || puzzle.truth_table.some(row =>
+        !Array.isArray(row) || row.length !== inputs.length + outputs.length
+        || row.some(value => value !== 0 && value !== 1 && value !== false && value !== true)
+      )) {
+        showToast('Invalid puzzle', 'The puzzle truth table does not match its input and output counts.', 'toast-error');
+        return;
+      }
+    
+      const hasSequentialNames = nodes => nodes.every(node =>
+        /^\d+$/.test(node.name || '')
+        && node.name === String(Number(node.name))
+        && Number.isSafeInteger(Number(node.name))
+        && Number(node.name) < nodes.length
+      ) && new Set(nodes.map(node => Number(node.name))).size === nodes.length;
+      const orderNodes = nodes => hasSequentialNames(nodes)
+        ? nodes.slice().sort((a, b) => Number(a.name) - Number(b.name))
+        : nodes;
+      const inputNodes = orderNodes(inputs);
+      const outputNodes = orderNodes(outputs);
+      const allNodesNumbered = hasSequentialNames(inputs) && hasSequentialNames(outputs);
+      if (!allNodesNumbered) {
+        showToast('Default terminal order used', 'Name toggles and lamps 0 to n to choose their truth-table order.');
+      }
+    
+      const currentTable = puzzle.truth_table.map(row => {
+        const overrides = new Map(inputNodes.map((node, index) => [node.id, Boolean(row[index])]));
+        const result = evaluateGraph(state.nodes, state.connections, overrides, state.customBlocks);
+        return [
+          ...row.slice(0, inputs.length),
+          ...outputNodes.map(node => Boolean(result.nodeInputs[node.id] && result.nodeInputs[node.id].in)),
+        ];
+      });
+      const passed = puzzle.truth_table.every((row, rowIndex) =>
+        row.slice(inputs.length).every((expected, outputIndex) =>
+          Boolean(expected) === currentTable[rowIndex][inputs.length + outputIndex]
+        )
+      );
+      showPuzzleResult(puzzle, currentTable, passed);
+    }
+    
+    function showPuzzleResult(puzzle, currentTable, passed) {
+      if (passed) {
+        state.puzzleProgress[state.currentPuzzleId] = true;
+        persistPuzzleProgress();
+        notify();
+      }
+      const body = document.createElement('div');
+      if (passed) {
+        body.innerHTML = `<p>You solved <strong>${escapeHtml(puzzle.title)}</strong>!</p><div class="dialog-actions"><button class="btn btn-primary" id="puzzleResultOk">OK</button></div>`;
+      } else {
+        const headers = Array.from({ length: puzzle.input_count }, (_, i) => `I${i}`)
+          .concat(Array.from({ length: puzzle.output_count }, (_, i) => `O${i}`));
+        const renderTable = (rows) => `
+          <table class="truth-table"><thead><tr>${headers.map(value => `<th>${value}</th>`).join('')}</tr></thead>
+          <tbody>${rows.map(row => `<tr>${row.map(value => `<td>${value ? 1 : 0}</td>`).join('')}</tr>`).join('')}</tbody></table>
+        `;
+        body.innerHTML = `
+          <p>The circuit does not match the required truth table.</p>
+          <div class="truth-table-result"><strong>Expected</strong>${renderTable(puzzle.truth_table)}</div>
+          <div class="truth-table-result"><strong>Your circuit</strong>${renderTable(currentTable)}</div>
+          <div class="dialog-actions"><button class="btn btn-primary" id="puzzleResultOk">OK</button></div>
+        `;
+      }
+      const dlg = showDialog({ title: passed ? 'Puzzle solved' : 'Not quite', body, maxWidth: 'medium' });
+      body.querySelector('#puzzleResultOk').onclick = () => {
+        dlg.close();
+        if (passed) leavePuzzle();
+      };
+    }
+    
+    function loadCustomPuzzlePack(file) {
+      if (!file) return;
+    
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(String(reader.result));
+          const fallbackName = file.name.replace(/\.json$/i, '') || 'Custom Pack';
+          const pack = normalizePuzzlePack(data, fallbackName, null, false);
+          if (!pack) throw new Error('Invalid puzzle pack');
+          pack.id = `expansion:${encodeURIComponent(pack.name)}`;
+    
+          const duplicateIndex = state.puzzlePacks.findIndex(existing => existing.id === pack.id);
+          if (duplicateIndex >= 0) state.puzzlePacks[duplicateIndex] = pack;
+          else state.puzzlePacks = [...state.puzzlePacks, pack];
+          try {
+            localStorage.setItem(PUZZLE_PACKS_STORAGE_KEY, JSON.stringify(
+              state.puzzlePacks.filter(existing => !existing.isBuiltIn).map(({ name, sections }) => ({ name, sections }))
+            ));
+          } catch (error) {
+            showToast('Expansion save failed', 'The expansion was loaded but could not be saved to local storage.', 'toast-error');
+          }
+          state.puzzlePackLoadStatus = 'loaded';
+          notify();
+          showToast('Expansion pack loaded', `${pack.name} · ${Object.keys(pack.sections).length} section(s)`);
+        } catch (error) {
+          showToast('Import failed', 'Choose a valid puzzle expansion JSON file.', 'toast-error');
+        }
+      };
+      reader.onerror = () => {
+        showToast('Import failed', 'The selected puzzle file could not be read.', 'toast-error');
+      };
+      reader.readAsText(file);
+    }
+    
+    function removePuzzleExpansions(deleteSaves) {
+      const expansions = state.puzzlePacks.filter(pack => !pack.isBuiltIn);
+      try {
+        localStorage.setItem(PUZZLE_PACKS_STORAGE_KEY, '[]');
+      } catch (error) {
+        showToast('Expansion removal failed', 'The loaded expansions could not be removed from local storage.', 'toast-error');
+        return;
+      }
+      if (deleteSaves) {
+        try {
+          const saveKeys = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(PUZZLE_SAVE_PREFIX)) saveKeys.push(key);
+          }
+          for (const key of saveKeys) {
+            const id = decodeURIComponent(key.slice(PUZZLE_SAVE_PREFIX.length));
+            if (expansions.some(pack => id.startsWith(`["${pack.id}"`))) localStorage.removeItem(key);
+          }
+        } catch (error) {
+          showToast('Expansion saves partly removed', 'Some expansion saves could not be deleted.', 'toast-error');
+          return;
+        }
+        for (const id of Object.keys(state.puzzleProgress)) {
+          if (expansions.some(pack => id.startsWith(`["${pack.id}"`))) delete state.puzzleProgress[id];
+        }
+        if (!persistPuzzleProgress()) return;
+      }
+      state.puzzlePacks = state.puzzlePacks.filter(pack => pack.isBuiltIn);
+      notify();
+      showToast('Expansions removed', deleteSaves ? 'Expansion packs and their puzzle saves were deleted.' : 'Expansion packs were removed; their puzzle saves were kept.');
+    }
+    
+    function resetAllPuzzleProgress() {
+      const previousProgress = state.puzzleProgress;
+      state.puzzleProgress = {};
+      try {
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith(PUZZLE_SAVE_PREFIX)) keys.push(key);
+        }
+        keys.forEach(key => localStorage.removeItem(key));
+      } catch (error) {
+        state.puzzleProgress = previousProgress;
+        showToast('Puzzle reset incomplete', 'Some saved puzzle canvases could not be removed from local storage.', 'toast-error');
+        return;
+      }
+      if (!persistPuzzleProgress()) {
+        state.puzzleProgress = previousProgress;
+        notify();
+        return;
+      }
+      notify();
+      showToast('Puzzle progress reset', 'Solved status and saved canvases for all puzzles were cleared.');
+    }
+    
+    function chooseCustomPuzzlePack() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json,.json';
+      input.style.position = 'fixed';
+      input.style.opacity = '0';
+      input.style.pointerEvents = 'none';
+      input.setAttribute('aria-hidden', 'true');
+      input.addEventListener('change', () => {
+        const file = input.files && input.files[0];
+        if (file) loadCustomPuzzlePack(file);
+        input.value = '';
+        input.remove();
+      });
+      input.addEventListener('cancel', () => input.remove());
+      document.body.appendChild(input);
+      input.click();
+    }
     /* ============================================================ INIT */
     function init() {
       setupCanvasEvents();
       setupPendingWireTracking();
       loadStateFromLocalStorage();
+      loadPuzzleProgress();
       renderAll();
       subscribe(() => {
         saveStateToLocalStorage();
@@ -2425,6 +3688,7 @@
         if (state.wireDelay > 0 && rafId === null) startWireDelayLoop();
         if (state.wireDelay <= 0 && rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
       });
+      loadBuiltInPuzzlePacks();
     }
     
     if (document.readyState === 'loading') {

@@ -23,6 +23,10 @@ const state = {
   secretWireUnlocked: false,
   puzzlePacks: [],
   puzzlePackLoadStatus: 'loading',
+  currentPuzzle: null,
+  currentPuzzleId: null,
+  puzzleProgress: {},
+  sandboxSnapshot: null,
 };
 
 const subscribers = new Set();
@@ -36,11 +40,16 @@ function showMainMenu() {
 }
 
 function showPuzzleMenu() {
+  if (state.currentPuzzle) {
+    leavePuzzle();
+    return;
+  }
   state.view = 'puzzles';
   notify();
 }
 
 function showSandbox() {
+  if (state.currentPuzzle) leavePuzzle(false);
   state.view = 'sandbox';
   notify();
 }

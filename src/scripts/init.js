@@ -3,6 +3,7 @@ function init() {
   setupCanvasEvents();
   setupPendingWireTracking();
   loadStateFromLocalStorage();
+  loadPuzzleProgress();
   renderAll();
   subscribe(() => {
     saveStateToLocalStorage();

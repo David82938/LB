@@ -19,9 +19,10 @@ function el(tag, className, attrs, children) {
 function renderMenu() {
   const app = document.getElementById('app');
   const menuRoot = document.getElementById('menuRoot');
-  app.classList.toggle('hidden', state.view !== 'sandbox');
-  menuRoot.classList.toggle('hidden', state.view === 'sandbox');
-  if (state.view === 'sandbox') {
+  const editorVisible = state.view === 'sandbox' || state.view === 'puzzle';
+  app.classList.toggle('hidden', !editorVisible);
+  menuRoot.classList.toggle('hidden', editorVisible);
+  if (editorVisible) {
     menuRoot.innerHTML = '';
     return;
   }
@@ -43,18 +44,36 @@ function renderMenu() {
           `;
         }
         const sections = Object.entries(pack.sections).map(([sectionName, puzzles]) => {
+          const solvedCount = puzzles.reduce((count, puzzle, index) => {
+            const puzzleId = getPuzzleId(pack, sectionName, index, puzzle);
+            return count + (state.puzzleProgress[puzzleId] ? 1 : 0);
+          }, 0);
+          const progress = puzzles.length ? Math.round((solvedCount / puzzles.length) * 100) : 0;
           const cards = puzzles.length > 0
-            ? puzzles.map((puzzle, index) => `
-                <button class="puzzle-card" type="button" data-puzzle="${index + 1}" title="${escapeHtml(puzzle.title)}">
+            ? puzzles.map((puzzle, index) => {
+              const puzzleId = getPuzzleId(pack, sectionName, index, puzzle);
+              const solved = Boolean(state.puzzleProgress[puzzleId]);
+              return `
+                <button class="puzzle-card${solved ? ' puzzle-solved' : ''}" type="button" data-puzzle-id="${escapeHtml(puzzleId)}" title="${escapeHtml(puzzle.title)}">
                   <span class="puzzle-number">${index + 1}</span>
                   <strong>${escapeHtml(puzzle.title)}</strong>
+                  ${solved ? '<span class="puzzle-solved-label">Solved</span>' : ''}
                 </button>
-              `).join('')
+              `;
+            }).join('')
             : '<div class="puzzle-empty">No Puzzles</div>';
 
           return `
             <section class="puzzle-section">
-              <h3>${escapeHtml(sectionName)}</h3>
+              <div class="puzzle-section-heading">
+                <h3>${escapeHtml(sectionName)}</h3>
+                <div class="puzzle-section-progress">
+                  <span>${solvedCount}/${puzzles.length} solved</span>
+                  <div class="puzzle-progress-track" role="progressbar" aria-label="${escapeHtml(sectionName)} progress" aria-valuemin="0" aria-valuemax="${Math.max(puzzles.length, 1)}" aria-valuenow="${solvedCount}">
+                    <span style="width:${progress}%"></span>
+                  </div>
+                </div>
+              </div>
               <div class="puzzle-grid">${cards}</div>
             </section>
           `;
@@ -76,7 +95,7 @@ function renderMenu() {
             <h2>Puzzles</h2>
           </div>
           <div class="puzzle-heading-actions">
-            <button class="btn" id="loadPuzzlePackBtn" type="button">Load expansion pack</button>
+            <button class="btn" id="puzzleSettingsBtn" type="button">Settings</button>
             <button class="btn mode-back" id="puzzleBackBtn" type="button">Back to main Menu</button>
           </div>
         </div>
@@ -84,8 +103,10 @@ function renderMenu() {
       </div>
     `;
     document.getElementById('puzzleBackBtn').onclick = showMainMenu;
-    document.getElementById('loadPuzzlePackBtn').onclick = chooseCustomPuzzlePack;
-    menuRoot.querySelectorAll('.puzzle-card').forEach(btn => { btn.onclick = () => {}; });
+    document.getElementById('puzzleSettingsBtn').onclick = showPuzzleSettingsDialog;
+    menuRoot.querySelectorAll('.puzzle-card').forEach(btn => {
+      btn.onclick = () => openPuzzle(btn.dataset.puzzleId);
+    });
     return;
   }
 
@@ -117,13 +138,17 @@ function renderHeader() {
   const headerBrand = document.getElementById('headerBrand');
   if (headerBrand) {
     headerBrand.classList.add('menu-link');
-    headerBrand.onclick = showMainMenu;
+    headerBrand.onclick = state.currentPuzzle ? showPuzzleMenu : showMainMenu;
   }
   const headerRight = document.getElementById('headerRight');
   const isEditing = state.editingBlockId !== null;
   const editingBlock = state.customBlocks.find(b => b.id === state.editingBlockId);
   headerRight.innerHTML = '';
-  if (isEditing) {
+  if (state.currentPuzzle) {
+    const indicator = el('div', 'editing-indicator');
+    indicator.textContent = `Puzzle · ${state.currentPuzzle.puzzle.title}`;
+    headerRight.appendChild(indicator);
+  } else if (isEditing) {
     const indicator = el('div', 'editing-indicator');
     indicator.innerHTML = '<span class="editing-dot"></span> editing ' + escapeHtml(editingBlock ? editingBlock.name : 'block') + ' · drag & rewire, then hit Done';
     headerRight.appendChild(indicator);
@@ -147,21 +172,44 @@ function renderHeader() {
 function renderSidebar() {
   const list = document.getElementById('sidebarList');
   list.innerHTML = '';
-  const builtins = [
-    { kind: 'AND', label: 'AND', description: 'a · b → c', inCount: 2, outCount: 1 },
-    { kind: 'NOT', label: 'NOT', description: '¬a → b', inCount: 1, outCount: 1 },
-  ];
-  if (state.secretWireUnlocked) {
+  const gateDefinitions = {
+    NOT: { description: '¬a → b', inCount: 1 },
+    AND: { description: 'a · b → c', inCount: 2 },
+    NAND: { description: '¬(a · b) → c', inCount: 2 },
+    NOR: { description: '¬(a ∨ b) → c', inCount: 2 },
+    OR: { description: 'a ∨ b → c', inCount: 2 },
+    XOR: { description: 'a ⊕ b → c', inCount: 2 },
+    XNOR: { description: '¬(a ⊕ b) → c', inCount: 2 },
+  };
+  const puzzleBlocks = state.currentPuzzle ? Object.keys(state.currentPuzzle.blockInventory) : null;
+  const blockKinds = puzzleBlocks || ['AND', 'NOT'];
+  const builtins = blockKinds.map(kind => ({
+    kind,
+    label: kind,
+    description: gateDefinitions[kind].description,
+    inCount: gateDefinitions[kind].inCount,
+    outCount: 1,
+  }));
+  if (!state.currentPuzzle && state.secretWireUnlocked) {
     builtins.push({ kind: 'WIRE_REVERSE', label: 'R-Wire', description: 'right → left', inCount: 1, outCount: 1 });
   }
   builtins.forEach(item => {
+    const remaining = state.currentPuzzle ? getPuzzleBlockRemaining(item.kind) : Infinity;
     list.appendChild(renderSidebarItem({
       label: item.label,
       description: item.description,
       inCount: item.inCount,
       outCount: item.outCount,
-      onAdd: () => addNodeFromTemplate(item.kind, { x: WORLD_WIDTH / 2 - 70, y: WORLD_HEIGHT / 2 - 30 }),
-      onDragStart: (e) => { e.dataTransfer.setData('application/json', JSON.stringify({ kind: item.kind })); e.dataTransfer.effectAllowed = 'copy'; },
+      inventoryCount: state.currentPuzzle ? remaining : undefined,
+      disabled: remaining <= 0,
+      onAdd: () => {
+        if (remaining > 0) addNodeFromTemplate(item.kind, { x: WORLD_WIDTH / 2 - 70, y: WORLD_HEIGHT / 2 - 30 });
+      },
+      onDragStart: (e) => {
+        if (remaining <= 0) { e.preventDefault(); return; }
+        e.dataTransfer.setData('application/json', JSON.stringify({ kind: item.kind }));
+        e.dataTransfer.effectAllowed = 'copy';
+      },
     }));
   });
   state.customBlocks.forEach(b => {
@@ -190,10 +238,12 @@ function renderSidebar() {
 }
 
 function renderSidebarItem(opts) {
-  const item = el('div', 'sidebar-item' + (opts.isBeingEdited ? ' being-edited' : ''));
-  item.draggable = !state.selectionMode;
+  const item = el('div', 'sidebar-item'
+    + (opts.isBeingEdited ? ' being-edited' : '')
+    + (opts.disabled ? ' inventory-empty' : ''));
+  item.draggable = !state.selectionMode && !opts.disabled;
   item.addEventListener('dragstart', (e) => {
-    if (state.selectionMode) { e.preventDefault(); return; }
+    if (state.selectionMode || opts.disabled) { e.preventDefault(); return; }
     opts.onDragStart(e);
   });
 
@@ -232,6 +282,11 @@ function renderSidebarItem(opts) {
   }
   labelBtn.appendChild(descDiv);
   item.appendChild(labelBtn);
+  if (opts.inventoryCount !== undefined) {
+    const count = el('span', 'inventory-count', { title: `${opts.inventoryCount} remaining` });
+    count.textContent = opts.inventoryCount === Infinity ? '∞' : String(opts.inventoryCount);
+    item.appendChild(count);
+  }
 
   const badges = el('div', 'pin-badges');
   badges.innerHTML = `<span class="pin-badge pin-badge-in">${opts.inCount} in</span><span class="pin-badge pin-badge-out">${opts.outCount} out</span>`;
@@ -319,7 +374,12 @@ function renderBottomBar() {
   const wiresStat = el('span', 'stat');
   wiresStat.innerHTML = `<span class="num">${state.connections.length}</span> wires`;
   stats.appendChild(wiresStat);
-  if (isEditing) {
+  if (state.currentPuzzle) {
+    stats.appendChild(el('div', 'divider'));
+    const puzzleStat = el('span', 'stat puzzle-status-label');
+    puzzleStat.textContent = `${state.currentPuzzle.puzzle.title} · ${state.puzzleProgress[state.currentPuzzleId] ? 'Solved' : 'Not solved'}`;
+    stats.appendChild(puzzleStat);
+  } else if (isEditing) {
     stats.appendChild(el('div', 'divider'));
     const editStat = el('span', 'stat editing-label');
     editStat.textContent = 'editing ' + (editingBlock ? editingBlock.name : 'block');
@@ -370,6 +430,31 @@ function renderBottomBar() {
     };
     actions.appendChild(cancelBtn);
     actions.appendChild(doneBtn);
+  } else if (state.currentPuzzle) {
+    const clearBtn = el('button', 'btn', { title: 'Clear the puzzle canvas' });
+    clearBtn.innerHTML = ICONS.trashSm + ' Clear';
+    clearBtn.onclick = () => {
+      if (state.nodes.length === 0 && state.connections.length === 0) return;
+      showConfirmDialog({
+        title: 'Clear canvas?',
+        message: 'This removes all nodes and connections from this puzzle canvas.',
+        confirmLabel: 'Clear',
+        destructive: true,
+        onConfirm: () => {
+          state.nodes = [];
+          state.connections = [];
+          state.pendingFrom = null;
+          wireInternals.clear();
+          state.wireTransit = {};
+          notify();
+        },
+      });
+    };
+    const verifyBtn = el('button', 'btn btn-primary', { title: 'Check the circuit against the puzzle truth table' });
+    verifyBtn.innerHTML = ICONS.check + ' Verify';
+    verifyBtn.onclick = verifyCurrentPuzzle;
+    actions.appendChild(clearBtn);
+    actions.appendChild(verifyBtn);
   } else {
     const clearBtn = el('button', 'btn', { title: 'Clear the canvas (custom blocks are kept in the sidebar)' });
     clearBtn.innerHTML = ICONS.trashSm + ' Clear';

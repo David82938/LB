@@ -2,6 +2,11 @@
 function evalGate(kind, inputs, def, allDefs) {
   if (kind === 'AND') return [inputs[0] && inputs[1]];
   if (kind === 'NOT') return [!inputs[0]];
+  if (kind === 'NAND') return [!(inputs[0] && inputs[1])];
+  if (kind === 'NOR') return [!(inputs[0] || inputs[1])];
+  if (kind === 'OR') return [inputs[0] || inputs[1]];
+  if (kind === 'XOR') return [Boolean(inputs[0]) !== Boolean(inputs[1])];
+  if (kind === 'XNOR') return [Boolean(inputs[0]) === Boolean(inputs[1])];
   if (kind === 'WIRE_REVERSE') return [inputs[0] || false];
   if (kind === 'INPUT') return [];
   if (kind === 'OUTPUT') return [];
