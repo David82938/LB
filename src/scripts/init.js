@@ -1,0 +1,20 @@
+/* ============================================================ INIT */
+function init() {
+  setupCanvasEvents();
+  setupPendingWireTracking();
+  loadStateFromLocalStorage();
+  renderAll();
+  subscribe(() => {
+    saveStateToLocalStorage();
+    renderAll();
+    if (state.wireDelay > 0 && rafId === null) startWireDelayLoop();
+    if (state.wireDelay <= 0 && rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+  });
+  loadBuiltInPuzzlePacks();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
