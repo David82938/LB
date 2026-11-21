@@ -366,6 +366,14 @@ svg { display: block; }
 .truth-table th { color: var(--primary); font-weight: 600; }
 .truth-table-result { margin-bottom: 12px; font-size: 12px; }
 .truth-table-result > strong { display: block; margin-bottom: 4px; color: var(--foreground); }
+.puzzle-truth-window { position: fixed; z-index: 45; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow: auto; border: 1px solid var(--primary); border-radius: 8px; background: var(--popover); box-shadow: 0 16px 48px rgba(0, 0, 0, .55); }
+.puzzle-truth-window-header { height: 32px; display: flex; justify-content: flex-end; align-items: center; padding: 4px 6px; cursor: grab; touch-action: none; }
+.puzzle-truth-window-header:active { cursor: grabbing; }
+.puzzle-truth-window-close { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 4px; color: var(--muted-foreground); cursor: pointer; }
+.puzzle-truth-window-close:hover { color: var(--foreground); background: oklch(1 0 0 / 8%); }
+.puzzle-truth-window-close svg { width: 16px; height: 16px; }
+.puzzle-truth-window-body { padding: 0 10px 10px; }
+.puzzle-truth-window .truth-table { margin: 0; }
 
 /* Build dialog */
 .build-info {

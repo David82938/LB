@@ -236,10 +236,66 @@ function startSettingsSecretTimer() {
 
 function renderSettingsTruthTable(puzzle) {
   if (!Array.isArray(puzzle.truth_table)) return '<p class="settings-description">Truth table unavailable.</p>';
+  return '<button class="btn btn-sm" id="showPuzzleTruthTableBtn" type="button">Open truth table</button>';
+}
+
+function renderTruthTableMarkup(puzzle) {
+  if (!Array.isArray(puzzle.truth_table)) return '<p class="settings-description">Truth table unavailable.</p>';
   const headers = Array.from({ length: puzzle.input_count || 0 }, (_, i) => `I${i}`)
     .concat(Array.from({ length: puzzle.output_count || 0 }, (_, i) => `O${i}`));
   const rows = puzzle.truth_table.map(row => `<tr>${row.map(value => `<td>${value ? 1 : 0}</td>`).join('')}</tr>`).join('');
   return `<div class="truth-table-scroll"><table class="truth-table"><thead><tr>${headers.map(value => `<th>${value}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function showPuzzleTruthTableWindow() {
+  if (!state.currentPuzzle) return;
+  if (document.getElementById('puzzleTruthTableWindow')) return;
+
+  const panel = el('div', 'puzzle-truth-window', { id: 'puzzleTruthTableWindow', role: 'dialog', 'aria-label': 'Puzzle truth table' });
+  const header = el('div', 'puzzle-truth-window-header');
+  const closeButton = el('button', 'puzzle-truth-window-close', {
+    type: 'button',
+    title: 'Close truth table',
+    'aria-label': 'Close truth table',
+    onclick: () => panel.remove(),
+  });
+  closeButton.innerHTML = ICONS.x;
+  header.appendChild(closeButton);
+  panel.appendChild(header);
+
+  const table = el('div', 'puzzle-truth-window-body');
+  table.innerHTML = renderTruthTableMarkup(state.currentPuzzle.puzzle);
+  panel.appendChild(table);
+  document.body.appendChild(panel);
+
+  header.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('button')) return;
+    event.preventDefault();
+    const rect = panel.getBoundingClientRect();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startLeft = rect.left;
+    const startTop = rect.top;
+    panel.style.left = `${startLeft}px`;
+    panel.style.top = `${startTop}px`;
+    panel.style.transform = 'none';
+    header.setPointerCapture(event.pointerId);
+
+    const onMove = (moveEvent) => {
+      const maxLeft = Math.max(0, window.innerWidth - panel.offsetWidth);
+      const maxTop = Math.max(0, window.innerHeight - panel.offsetHeight);
+      panel.style.left = `${Math.max(0, Math.min(maxLeft, startLeft + moveEvent.clientX - startX))}px`;
+      panel.style.top = `${Math.max(0, Math.min(maxTop, startTop + moveEvent.clientY - startY))}px`;
+    };
+    const stopDragging = () => {
+      header.removeEventListener('pointermove', onMove);
+      header.removeEventListener('pointerup', stopDragging);
+      header.removeEventListener('pointercancel', stopDragging);
+    };
+    header.addEventListener('pointermove', onMove);
+    header.addEventListener('pointerup', stopDragging);
+    header.addEventListener('pointercancel', stopDragging);
+  });
 }
 
 function showSettings() {
@@ -318,6 +374,7 @@ function showSettings() {
       });
     };
   } else {
+    body.querySelector('#showPuzzleTruthTableBtn').onclick = showPuzzleTruthTableWindow;
     body.querySelector('#resetBtn').onclick = () => {
       dlg.close();
       leavePuzzle();

@@ -189,10 +189,13 @@ function openPuzzle(id) {
   wireInternals.clear();
   state.wireTransit = {};
   notify();
+  showPuzzleTruthTableWindow();
 }
 
 function leavePuzzle(returnToPuzzles) {
   if (!state.currentPuzzle) return;
+  const truthTableWindow = document.getElementById('puzzleTruthTableWindow');
+  if (truthTableWindow) truthTableWindow.remove();
   savePuzzleCanvas();
   const snapshot = state.sandboxSnapshot;
   state.nodes = snapshot ? snapshot.nodes : [];
