@@ -141,7 +141,7 @@ function showBuildDialog({ defaultName, defaultDescription, inputCount, outputCo
   cancelBtn.onclick = () => { dlg.close(); if (onCancel) onCancel(); };
   selectBtn.onclick = () => {
     dlg.close();
-    enterSelectionMode();
+    enterSelectionMode(nameInput.value.trim() || defaultName, descInput.value);
   };
   confirmBtn.onclick = doBuild;
   nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doBuild(); });

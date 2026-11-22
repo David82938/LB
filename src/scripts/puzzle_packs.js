@@ -289,14 +289,23 @@ function showPuzzleResult(puzzle, currentTable, passed) {
   } else {
     const headers = Array.from({ length: puzzle.input_count }, (_, i) => `I${i}`)
       .concat(Array.from({ length: puzzle.output_count }, (_, i) => `O${i}`));
-    const renderTable = (rows) => `
+    const renderTable = (rows, highlightIncorrectOutputs = false) => `
       <table class="truth-table"><thead><tr>${headers.map(value => `<th>${value}</th>`).join('')}</tr></thead>
-      <tbody>${rows.map(row => `<tr>${row.map(value => `<td>${value ? 1 : 0}</td>`).join('')}</tr>`).join('')}</tbody></table>
+      <tbody>${rows.map((row, rowIndex) => `<tr>${row.map((value, columnIndex) => {
+        const expected = puzzle.truth_table[rowIndex][columnIndex];
+        const isIncorrectOutput = highlightIncorrectOutputs
+          && columnIndex >= puzzle.input_count
+          && Boolean(value) !== Boolean(expected);
+        const attributes = isIncorrectOutput
+          ? ` class="truth-table-mismatch" title="Expected ${expected ? 1 : 0}"`
+          : '';
+        return `<td${attributes}>${value ? 1 : 0}</td>`;
+      }).join('')}</tr>`).join('')}</tbody></table>
     `;
     body.innerHTML = `
       <p>The circuit does not match the required truth table.</p>
       <div class="truth-table-result"><strong>Expected</strong>${renderTable(puzzle.truth_table)}</div>
-      <div class="truth-table-result"><strong>Your circuit</strong>${renderTable(currentTable)}</div>
+      <div class="truth-table-result"><strong>Your circuit</strong>${renderTable(currentTable, true)}</div>
       <div class="dialog-actions"><button class="btn btn-primary" id="puzzleResultOk">OK</button></div>
     `;
   }

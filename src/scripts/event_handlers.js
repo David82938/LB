@@ -30,6 +30,10 @@ let lastCursor = { x: 0, y: 0 };
 
 function setupCanvasEvents() {
   const viewport = document.getElementById('viewport');
+  viewport.addEventListener('pointerdown', closeMobileSidebar);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeMobileSidebar();
+  });
 
   // Drag-and-drop from sidebar
   viewport.addEventListener('dragover', (e) => {

@@ -134,6 +134,21 @@ function renderMenu() {
   document.getElementById('puzzleModeBtn').onclick = showPuzzleMenu;
 }
 
+function setMobileSidebarOpen(open) {
+  const app = document.getElementById('app');
+  const toggle = document.getElementById('mobileSidebarToggle');
+  if (!app) return;
+  app.classList.toggle('mobile-sidebar-open', open);
+  if (toggle) {
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.textContent = open ? 'Close blocks' : 'Blocks';
+  }
+}
+
+function closeMobileSidebar() {
+  if (window.matchMedia('(max-width: 760px)').matches) setMobileSidebarOpen(false);
+}
+
 function renderHeader() {
   const headerBrand = document.getElementById('headerBrand');
   if (headerBrand) {
@@ -144,6 +159,14 @@ function renderHeader() {
   const isEditing = state.editingBlockId !== null;
   const editingBlock = state.customBlocks.find(b => b.id === state.editingBlockId);
   headerRight.innerHTML = '';
+  const mobileSidebarToggle = el('button', 'btn mobile-sidebar-toggle', {
+    id: 'mobileSidebarToggle',
+    type: 'button',
+    'aria-controls': 'sidebar',
+    'aria-expanded': String(document.getElementById('app').classList.contains('mobile-sidebar-open')),
+    onclick: () => setMobileSidebarOpen(!document.getElementById('app').classList.contains('mobile-sidebar-open')),
+  }, document.getElementById('app').classList.contains('mobile-sidebar-open') ? 'Close blocks' : 'Blocks');
+  headerRight.appendChild(mobileSidebarToggle);
   if (state.currentPuzzle) {
     const indicator = el('div', 'editing-indicator');
     indicator.textContent = `Puzzle · ${state.currentPuzzle.puzzle.title}`;
@@ -203,7 +226,10 @@ function renderSidebar() {
       inventoryCount: state.currentPuzzle ? remaining : undefined,
       disabled: remaining <= 0,
       onAdd: () => {
-        if (remaining > 0) addNodeFromTemplate(item.kind, { x: WORLD_WIDTH / 2 - 70, y: WORLD_HEIGHT / 2 - 30 });
+        if (remaining > 0) {
+          addNodeFromTemplate(item.kind, { x: WORLD_WIDTH / 2 - 70, y: WORLD_HEIGHT / 2 - 30 });
+          closeMobileSidebar();
+        }
       },
       onDragStart: (e) => {
         if (remaining <= 0) { e.preventDefault(); return; }
@@ -223,7 +249,10 @@ function renderSidebar() {
       icon: ICONS.cpu,
       isCustom: true,
       isBeingEdited: isEditingThis,
-      onAdd: () => addNodeFromTemplate('CUSTOM', { x: WORLD_WIDTH / 2 - 70, y: WORLD_HEIGHT / 2 - 30 }, b.id),
+      onAdd: () => {
+        addNodeFromTemplate('CUSTOM', { x: WORLD_WIDTH / 2 - 70, y: WORLD_HEIGHT / 2 - 30 }, b.id);
+        closeMobileSidebar();
+      },
       onDragStart: (e) => {
         if (isEditingThis) { e.preventDefault(); return; }
         e.dataTransfer.setData('application/json', JSON.stringify({ kind: 'CUSTOM', defId: b.id }));
@@ -425,8 +454,11 @@ function renderBottomBar() {
         showToast('Nothing selected', 'Drag a rectangle to select the circuit you want to build.', 'toast-error');
         return;
       }
-      const defaultName = nextBlockName(state.customBlocks);
-      buildSelectedBlock(defaultName, 'Custom Block');
+      const name = state.selectionBlockName || nextBlockName(state.customBlocks);
+      const description = state.selectionBlockDescription !== null
+        ? state.selectionBlockDescription
+        : 'Custom Block';
+      buildSelectedBlock(name, description);
     };
     actions.appendChild(cancelBtn);
     actions.appendChild(doneBtn);

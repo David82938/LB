@@ -37,6 +37,7 @@ function moveNode(id, position) {
 function removeNode(id) {
   state.nodes = state.nodes.filter(n => n.id !== id);
   state.connections = state.connections.filter(c => c.fromNode !== id && c.toNode !== id);
+  clearNodeSimulationState(id);
   notify();
 }
 
@@ -75,7 +76,6 @@ function completePending(nodeId, pinId, kind) {
     notify();
     return false;
   }
-  if (from.nodeId === to.nodeId) { state.pendingFrom = null; notify(); return false; }
   const exists = state.connections.find(c => c.toNode === to.nodeId && c.toPin === to.pinId);
   if (exists) { state.pendingFrom = null; notify(); return false; }
   const conn = { id: uid('conn'), fromNode: from.nodeId, fromPin: from.pinId, toNode: to.nodeId, toPin: to.pinId };
@@ -182,9 +182,11 @@ function getNodesInSelectionRect(rect) {
   return getConnectedNodeIdsFromSeed(seed);
 }
 
-function enterSelectionMode() {
+function enterSelectionMode(name, description) {
   state.selectionMode = true;
   state.selectionRect = null;
+  state.selectionBlockName = name || nextBlockName(state.customBlocks);
+  state.selectionBlockDescription = description !== undefined ? description : 'Custom Block';
   state.pendingFrom = null;
   document.body.style.cursor = 'crosshair';
   notify();
@@ -193,6 +195,8 @@ function enterSelectionMode() {
 function cancelSelectionMode() {
   state.selectionMode = false;
   state.selectionRect = null;
+  state.selectionBlockName = null;
+  state.selectionBlockDescription = null;
   document.body.style.cursor = '';
   notify();
 }
@@ -219,6 +223,8 @@ function buildSelectedBlock(name, description) {
   state.customBlocks = [...state.customBlocks, def];
   state.selectionMode = false;
   state.selectionRect = null;
+  state.selectionBlockName = null;
+  state.selectionBlockDescription = null;
   document.body.style.cursor = '';
   notify();
   const label = def.name || 'Block';
@@ -323,6 +329,7 @@ function deleteCustomBlock(defId) {
   }
   const doomedNodeIds = new Set(state.nodes.filter(n => n.defId === defId).map(n => n.id));
   state.customBlocks = state.customBlocks.filter(b => b.id !== defId);
+  doomedNodeIds.forEach(clearNodeSimulationState);
   state.nodes = state.nodes.filter(n => n.defId !== defId);
   state.connections = state.connections.filter(c => !doomedNodeIds.has(c.fromNode) && !doomedNodeIds.has(c.toNode));
   notify();
@@ -375,5 +382,10 @@ function resetGame() {
   state.settingsSecretReady = false;
   state.settingsSecretClickCount = 0;
   state.secretWireUnlocked = false;
+  state.sequentialState.clear();
+  state.clockStates.clear();
+  state.clockTransitions.clear();
+  state.simulationCache.clear();
+  state.graphOutputMemory.clear();
   notify();
 }

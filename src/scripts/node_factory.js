@@ -1,5 +1,60 @@
 /* ============================================================ NODE FACTORY */
 function makeGate(kind) {
+  if (kind === 'CLOCK') {
+    return {
+      inputs: [],
+      outputs: [{ id: 'clk', name: 'clk', kind: 'output', value: false }],
+    };
+  }
+  if (kind === 'SR_LATCH') {
+    return {
+      inputs: [
+        { id: 's', name: 'S', kind: 'input', value: false },
+        { id: 'r', name: 'R', kind: 'input', value: false },
+      ],
+      outputs: [
+        { id: 'q', name: 'Q', kind: 'output', value: false },
+        { id: 'qn', name: 'Q̄', kind: 'output', value: true },
+      ],
+    };
+  }
+  if (kind === 'D_LATCH' || kind === 'D_FLIP_FLOP') {
+    return {
+      inputs: [
+        { id: 'd', name: 'D', kind: 'input', value: false },
+        { id: 'clk', name: 'CLK', kind: 'input', value: false },
+      ],
+      outputs: [
+        { id: 'q', name: 'Q', kind: 'output', value: false },
+        { id: 'qn', name: 'Q̄', kind: 'output', value: true },
+      ],
+    };
+  }
+  if (kind === 'T_FLIP_FLOP') {
+    return {
+      inputs: [
+        { id: 't', name: 'T', kind: 'input', value: false },
+        { id: 'clk', name: 'CLK', kind: 'input', value: false },
+      ],
+      outputs: [
+        { id: 'q', name: 'Q', kind: 'output', value: false },
+        { id: 'qn', name: 'Q̄', kind: 'output', value: true },
+      ],
+    };
+  }
+  if (kind === 'JK_FLIP_FLOP') {
+    return {
+      inputs: [
+        { id: 'j', name: 'J', kind: 'input', value: false },
+        { id: 'k', name: 'K', kind: 'input', value: false },
+        { id: 'clk', name: 'CLK', kind: 'input', value: false },
+      ],
+      outputs: [
+        { id: 'q', name: 'Q', kind: 'output', value: false },
+        { id: 'qn', name: 'Q̄', kind: 'output', value: true },
+      ],
+    };
+  }
   if (kind === 'AND' || kind === 'NAND' || kind === 'OR' || kind === 'NOR' || kind === 'XOR' || kind === 'XNOR') {
     return {
       inputs: [

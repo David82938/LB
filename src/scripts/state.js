@@ -15,6 +15,8 @@ const state = {
   stashedConnections: [],
   selectionMode: false,
   selectionRect: null,
+  selectionBlockName: null,
+  selectionBlockDescription: null,
   zoom: 1,
   wireDelay: 0,
   wireTransit: {},
@@ -27,11 +29,40 @@ const state = {
   currentPuzzleId: null,
   puzzleProgress: {},
   sandboxSnapshot: null,
+  sequentialState: new Map(),
+  clockStates: new Map(),
+  clockTransitions: new Map(),
+  simulationCache: new Map(),
+  graphOutputMemory: new Map(),
+  notifyFramePending: false,
 };
 
 const subscribers = new Set();
 function subscribe(fn) { subscribers.add(fn); return () => subscribers.delete(fn); }
-function notify() { subscribers.forEach(fn => fn()); }
+let notifyWindowStart = 0;
+let notifyWindowCount = 0;
+const NOTIFY_LIMIT_PER_MS = 2;
+const NOTIFY_WINDOW_MS = 1;
+
+function notify() {
+  if (state.notifyFramePending) return;
+  state.notifyFramePending = true;
+  requestAnimationFrame(() => {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (now - notifyWindowStart >= NOTIFY_WINDOW_MS) {
+      notifyWindowStart = now;
+      notifyWindowCount = 0;
+    }
+    if (notifyWindowCount >= NOTIFY_LIMIT_PER_MS) {
+      state.notifyFramePending = false;
+      setTimeout(notify, NOTIFY_WINDOW_MS);
+      return;
+    }
+    notifyWindowCount += 1;
+    state.notifyFramePending = false;
+    subscribers.forEach(fn => fn());
+  });
+}
 
 function showMainMenu() {
   closeAllDialogs();

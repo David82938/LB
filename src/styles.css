@@ -364,6 +364,7 @@ svg { display: block; }
 .truth-table { border-collapse: collapse; margin: 8px 0 16px; font-family: monospace; font-size: 12px; }
 .truth-table th, .truth-table td { min-width: 28px; padding: 4px 8px; text-align: center; border: 1px solid var(--border); }
 .truth-table th { color: var(--primary); font-weight: 600; }
+.truth-table td.truth-table-mismatch { color: var(--destructive); background: oklch(0.577 0.245 27.325 / 15%); font-weight: 700; }
 .truth-table-result { margin-bottom: 12px; font-size: 12px; }
 .truth-table-result > strong { display: block; margin-bottom: 4px; color: var(--foreground); }
 .puzzle-truth-window { position: fixed; z-index: 45; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow: auto; border: 1px solid var(--primary); border-radius: 8px; background: var(--popover); box-shadow: 0 16px 48px rgba(0, 0, 0, .55); }
@@ -476,6 +477,65 @@ input[type="range"] { width: 100%; accent-color: var(--primary); }
 }
 @media (max-width: 360px) {
   .puzzle-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Mobile editor only */
+.mobile-sidebar-toggle { display: none; }
+@media (max-width: 760px) {
+  #app { height: 100dvh; }
+  #header { height: 44px; padding: 0 8px; }
+  .header-left { min-width: 0; gap: 5px; }
+  .header-left > svg { width: 20px; height: 20px; flex-shrink: 0; }
+  .header-left h1 { font-size: 13px; white-space: nowrap; }
+  .header-left .subtitle { display: none; }
+  .header-right { min-width: 0; gap: 5px; }
+  .header-right .editing-indicator { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .header-right .legend { display: none; }
+  .mobile-sidebar-toggle { display: inline-flex; height: 30px; padding: 0 9px; white-space: nowrap; }
+
+  #main { position: relative; }
+  #sidebar {
+    position: absolute;
+    z-index: 21;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(84vw, 256px);
+    height: auto;
+    transform: translateX(-101%);
+    transition: transform .18s ease-out;
+    box-shadow: 8px 0 24px rgba(0, 0, 0, .35);
+  }
+  #app.mobile-sidebar-open #sidebar { transform: translateX(0); }
+  .sidebar-header { min-height: 38px; padding: 7px 10px; }
+  .sidebar-header h2 { font-size: 12px; }
+  .sidebar-header svg { width: 16px; height: 16px; }
+  .sidebar-list { padding: 6px; }
+  .sidebar-list > * + * { margin-top: 3px; }
+  .sidebar-item { gap: 5px; padding: 5px 6px; }
+  .sidebar-item .grip { display: none; }
+  .sidebar-item-label .name { font-size: 11px; }
+  .sidebar-item-label .desc { display: none; }
+  .pin-badges { display: none; }
+  .inventory-count { top: -5px; left: -5px; min-width: 19px; height: 19px; font-size: 9px; }
+  .sidebar-footer { display: none; }
+  .sidebar-actions { position: static; transform: none; opacity: 1; background: none; padding: 0; }
+  .action-btn { padding: 5px; }
+
+  #bottomBar { height: auto; min-height: 48px; gap: 6px; padding: 5px 7px; }
+  .bottom-stats { min-width: 0; flex: 1; gap: 6px; overflow: hidden; font-size: 10px; }
+  .bottom-stats .stat { min-width: 0; white-space: nowrap; }
+  .bottom-stats .puzzle-status-label { overflow: hidden; text-overflow: ellipsis; }
+  .bottom-actions { flex-shrink: 0; gap: 4px; }
+  .bottom-actions .btn { height: 32px; padding: 0 8px; font-size: 11px; }
+}
+
+@media (max-width: 420px) {
+  .header-right .editing-indicator { max-width: 92px; font-size: 9px; }
+  #bottomBar { align-items: center; }
+  .bottom-stats > .stat:not(.puzzle-status-label),
+  .bottom-stats > .divider { display: none; }
+  .bottom-actions .btn { gap: 4px; padding: 0 6px; }
 }
 
 /* ============================================================ MISC */

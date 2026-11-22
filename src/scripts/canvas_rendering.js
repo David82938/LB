@@ -110,11 +110,11 @@ function renderCanvas() {
   const svg = document.getElementById('wireSvg');
   Array.from(world.children).forEach(c => { if (c !== svg) c.remove(); });
 
-  // Render wires
-  renderWires();
+  const evalResult = getEvalResult();
+  // Render wires and nodes from the same sequential simulation step.
+  renderWires(evalResult);
 
   // Render nodes
-  const evalResult = getEvalResult();
   state.nodes.forEach(n => {
     const nodeEl = renderNode(n, evalResult);
     world.appendChild(nodeEl);
@@ -155,10 +155,10 @@ function renderCanvas() {
   if (!hasNodes) prevHadNodes = false;
 }
 
-function renderWires() {
+function renderWires(evalResult) {
   const svg = document.getElementById('wireSvg');
   svg.innerHTML = '';
-  const evalResult = getEvalResult();
+  evalResult = evalResult || getEvalResult();
   const wireTransit = state.wireTransit;
   const pendingFrom = state.pendingFrom;
 
@@ -168,7 +168,7 @@ function renderWires() {
     if (!from || !to) return;
     const transit = wireTransit[c.id];
     const sourceVal = (evalResult.nodeOutputs[c.fromNode] && evalResult.nodeOutputs[c.fromNode][c.fromPin]) || false;
-    const powered = transit !== undefined ? transit : sourceVal;
+    const powered = transit !== undefined ? Boolean(transit) : Boolean(sourceVal);
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     hitPath.setAttribute('d', wirePath(from, to, c.fromNode, c.toNode));
@@ -177,13 +177,24 @@ function renderWires() {
     hitPath.setAttribute('fill', 'none');
     hitPath.classList.add('hit');
     hitPath.onclick = () => removeConnection(c.id);
+    const coldPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    coldPath.setAttribute('d', wirePath(from, to, c.fromNode, c.toNode));
+    coldPath.setAttribute('stroke', 'var(--lb-wire-cold)');
+    coldPath.setAttribute('stroke-width', '2.5');
+    coldPath.setAttribute('fill', 'none');
+    g.appendChild(hitPath);
+    g.appendChild(coldPath);
+
+    g.dataset.connectionId = c.id;
     const visPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    visPath.dataset.wireHot = 'true';
     visPath.setAttribute('d', wirePath(from, to, c.fromNode, c.toNode));
-    visPath.setAttribute('stroke', powered ? 'var(--lb-wire-hot)' : 'var(--lb-wire-cold)');
+    visPath.setAttribute('stroke', 'var(--lb-wire-hot)');
     visPath.setAttribute('stroke-width', '2.5');
     visPath.setAttribute('fill', 'none');
-    if (powered) visPath.style.filter = 'drop-shadow(0 0 4px var(--lb-pin-active))';
-    g.appendChild(hitPath);
+    visPath.style.opacity = powered ? '1' : '0';
+    visPath.style.filter = 'drop-shadow(0 0 4px var(--lb-pin-active))';
+    visPath.style.pointerEvents = 'none';
     g.appendChild(visPath);
     svg.appendChild(g);
   });
@@ -204,6 +215,54 @@ function renderWires() {
       svg.appendChild(path);
     }
   }
+}
+
+function renderSimulationFrame() {
+  if (state.view !== 'sandbox' && state.view !== 'puzzle') return;
+  const world = document.getElementById('world');
+  if (!world) return;
+
+  const evalResult = getEvalResult();
+  const renderedNodes = new Map(
+    Array.from(world.querySelectorAll('.node')).map(nodeEl => [nodeEl.dataset.nodeId, nodeEl])
+  );
+  state.nodes.forEach(node => {
+    const nodeEl = renderedNodes.get(node.id);
+    if (!nodeEl) return;
+    const inputs = evalResult.nodeInputs[node.id] || {};
+    const outputs = evalResult.nodeOutputs[node.id] || {};
+
+    nodeEl.querySelectorAll('.pin-dot').forEach(dot => {
+      const powered = Boolean((dot.dataset.pinKind === 'input' ? inputs : outputs)[dot.dataset.pinId]);
+      dot.classList.toggle('powered', powered);
+      dot.style.backgroundColor = powered ? 'var(--lb-pin-active)' : 'var(--lb-pin)';
+    });
+    nodeEl.querySelectorAll('.pin-row[data-pin-id]').forEach(row => {
+      row.querySelector('.pin-name').classList.toggle(
+        'powered',
+        Boolean((row.dataset.pinKind === 'input' ? inputs : outputs)[row.dataset.pinId])
+      );
+    });
+    if (node.kind === 'OUTPUT') {
+      const powered = Boolean(inputs.in);
+      nodeEl.querySelector('.lamp-body').classList.toggle('powered', powered);
+      nodeEl.querySelector('.lamp-indicator').classList.toggle('powered', powered);
+    } else if (node.kind === 'WIRE_REVERSE') {
+      const color = outputs.out ? 'var(--lb-wire-hot)' : 'var(--lb-wire-cold)';
+      nodeEl.querySelectorAll('path').forEach(path => path.setAttribute('stroke', color));
+    }
+  });
+
+  const connections = new Map(state.connections.map(connection => [connection.id, connection]));
+  world.querySelectorAll('#wireSvg [data-connection-id]').forEach(group => {
+    const connection = connections.get(group.dataset.connectionId);
+    if (!connection) return;
+    const transit = state.wireTransit[connection.id];
+    const sourceVal = evalResult.nodeOutputs[connection.fromNode] &&
+      evalResult.nodeOutputs[connection.fromNode][connection.fromPin];
+    group.querySelector('[data-wire-hot]').style.opacity =
+      (transit !== undefined ? Boolean(transit) : Boolean(sourceVal)) ? '1' : '0';
+  });
 }
 
 function pinGlobalPos(nodeId, pinId, kind) {
@@ -331,7 +390,7 @@ function renderNode(node, evalResult) {
   const headerH = isTerminal ? TERMINAL_HEADER_HEIGHT : HEADER_HEIGHT;
 
   let headerLabel = '';
-  if (['AND', 'NOT', 'NAND', 'NOR', 'OR', 'XOR', 'XNOR'].includes(node.kind)) headerLabel = node.kind;
+  if (['AND', 'NOT', 'NAND', 'NOR', 'OR', 'XOR', 'XNOR', 'CLOCK', 'SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(node.kind)) headerLabel = node.kind.replace(/_/g, ' ');
   else if (node.kind === 'INPUT') headerLabel = 'Toggle';
   else if (node.kind === 'OUTPUT') headerLabel = 'Lamp';
   else if (node.kind === 'CUSTOM') {
@@ -404,6 +463,8 @@ function renderPinList(pins, side, poweredMap) {
   pins.forEach(p => {
     const isPowered = poweredMap[p.id] || false;
     const row = el('div', 'pin-row');
+    row.dataset.pinId = p.id;
+    row.dataset.pinKind = side === 'left' ? 'input' : 'output';
     row.style.height = PIN_HEIGHT + 'px';
     const name = el('span', 'pin-name' + (isPowered ? ' powered' : ''));
     name.textContent = p.name;
@@ -466,12 +527,10 @@ function renderLampBody(powered) {
 
 function renderTerminalRename(node, headerLabel) {
   const wrapper = el('div', 'terminal-rename');
-  // We'll just show the name as a button - double-click to edit
   const btn = el('button', 'rename-display');
   btn.textContent = node.name || headerLabel;
-  btn.title = 'Double-click to rename';
-  btn.ondblclick = (e) => { e.stopPropagation(); startTerminalRename(wrapper, node, headerLabel); };
-  btn.onclick = (e) => e.stopPropagation();
+  btn.title = 'Click to rename';
+  btn.onclick = (e) => { e.stopPropagation(); startTerminalRename(wrapper, node, headerLabel); };
   btn.addEventListener('mousedown', (e) => e.stopPropagation());
   wrapper.appendChild(btn);
   return wrapper;

@@ -372,6 +372,7 @@
     .truth-table { border-collapse: collapse; margin: 8px 0 16px; font-family: monospace; font-size: 12px; }
     .truth-table th, .truth-table td { min-width: 28px; padding: 4px 8px; text-align: center; border: 1px solid var(--border); }
     .truth-table th { color: var(--primary); font-weight: 600; }
+    .truth-table td.truth-table-mismatch { color: var(--destructive); background: oklch(0.577 0.245 27.325 / 15%); font-weight: 700; }
     .truth-table-result { margin-bottom: 12px; font-size: 12px; }
     .truth-table-result > strong { display: block; margin-bottom: 4px; color: var(--foreground); }
     .puzzle-truth-window { position: fixed; z-index: 45; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow: auto; border: 1px solid var(--primary); border-radius: 8px; background: var(--popover); box-shadow: 0 16px 48px rgba(0, 0, 0, .55); }
@@ -484,6 +485,65 @@
     }
     @media (max-width: 360px) {
       .puzzle-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+    
+    /* Mobile editor only */
+    .mobile-sidebar-toggle { display: none; }
+    @media (max-width: 760px) {
+      #app { height: 100dvh; }
+      #header { height: 44px; padding: 0 8px; }
+      .header-left { min-width: 0; gap: 5px; }
+      .header-left > svg { width: 20px; height: 20px; flex-shrink: 0; }
+      .header-left h1 { font-size: 13px; white-space: nowrap; }
+      .header-left .subtitle { display: none; }
+      .header-right { min-width: 0; gap: 5px; }
+      .header-right .editing-indicator { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .header-right .legend { display: none; }
+      .mobile-sidebar-toggle { display: inline-flex; height: 30px; padding: 0 9px; white-space: nowrap; }
+    
+      #main { position: relative; }
+      #sidebar {
+        position: absolute;
+        z-index: 21;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: min(84vw, 256px);
+        height: auto;
+        transform: translateX(-101%);
+        transition: transform .18s ease-out;
+        box-shadow: 8px 0 24px rgba(0, 0, 0, .35);
+      }
+      #app.mobile-sidebar-open #sidebar { transform: translateX(0); }
+      .sidebar-header { min-height: 38px; padding: 7px 10px; }
+      .sidebar-header h2 { font-size: 12px; }
+      .sidebar-header svg { width: 16px; height: 16px; }
+      .sidebar-list { padding: 6px; }
+      .sidebar-list > * + * { margin-top: 3px; }
+      .sidebar-item { gap: 5px; padding: 5px 6px; }
+      .sidebar-item .grip { display: none; }
+      .sidebar-item-label .name { font-size: 11px; }
+      .sidebar-item-label .desc { display: none; }
+      .pin-badges { display: none; }
+      .inventory-count { top: -5px; left: -5px; min-width: 19px; height: 19px; font-size: 9px; }
+      .sidebar-footer { display: none; }
+      .sidebar-actions { position: static; transform: none; opacity: 1; background: none; padding: 0; }
+      .action-btn { padding: 5px; }
+    
+      #bottomBar { height: auto; min-height: 48px; gap: 6px; padding: 5px 7px; }
+      .bottom-stats { min-width: 0; flex: 1; gap: 6px; overflow: hidden; font-size: 10px; }
+      .bottom-stats .stat { min-width: 0; white-space: nowrap; }
+      .bottom-stats .puzzle-status-label { overflow: hidden; text-overflow: ellipsis; }
+      .bottom-actions { flex-shrink: 0; gap: 4px; }
+      .bottom-actions .btn { height: 32px; padding: 0 8px; font-size: 11px; }
+    }
+    
+    @media (max-width: 420px) {
+      .header-right .editing-indicator { max-width: 92px; font-size: 9px; }
+      #bottomBar { align-items: center; }
+      .bottom-stats > .stat:not(.puzzle-status-label),
+      .bottom-stats > .divider { display: none; }
+      .bottom-actions .btn { gap: 4px; padding: 0 6px; }
     }
     
     /* ============================================================ MISC */
@@ -615,6 +675,8 @@
       stashedConnections: [],
       selectionMode: false,
       selectionRect: null,
+      selectionBlockName: null,
+      selectionBlockDescription: null,
       zoom: 1,
       wireDelay: 0,
       wireTransit: {},
@@ -627,11 +689,40 @@
       currentPuzzleId: null,
       puzzleProgress: {},
       sandboxSnapshot: null,
+      sequentialState: new Map(),
+      clockStates: new Map(),
+      clockTransitions: new Map(),
+      simulationCache: new Map(),
+      graphOutputMemory: new Map(),
+      notifyFramePending: false,
     };
     
     const subscribers = new Set();
     function subscribe(fn) { subscribers.add(fn); return () => subscribers.delete(fn); }
-    function notify() { subscribers.forEach(fn => fn()); }
+    let notifyWindowStart = 0;
+    let notifyWindowCount = 0;
+    const NOTIFY_LIMIT_PER_MS = 2;
+    const NOTIFY_WINDOW_MS = 1;
+    
+    function notify() {
+      if (state.notifyFramePending) return;
+      state.notifyFramePending = true;
+      requestAnimationFrame(() => {
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        if (now - notifyWindowStart >= NOTIFY_WINDOW_MS) {
+          notifyWindowStart = now;
+          notifyWindowCount = 0;
+        }
+        if (notifyWindowCount >= NOTIFY_LIMIT_PER_MS) {
+          state.notifyFramePending = false;
+          setTimeout(notify, NOTIFY_WINDOW_MS);
+          return;
+        }
+        notifyWindowCount += 1;
+        state.notifyFramePending = false;
+        subscribers.forEach(fn => fn());
+      });
+    }
     
     function showMainMenu() {
       closeAllDialogs();
@@ -655,6 +746,61 @@
     }
     /* ============================================================ NODE FACTORY */
     function makeGate(kind) {
+      if (kind === 'CLOCK') {
+        return {
+          inputs: [],
+          outputs: [{ id: 'clk', name: 'clk', kind: 'output', value: false }],
+        };
+      }
+      if (kind === 'SR_LATCH') {
+        return {
+          inputs: [
+            { id: 's', name: 'S', kind: 'input', value: false },
+            { id: 'r', name: 'R', kind: 'input', value: false },
+          ],
+          outputs: [
+            { id: 'q', name: 'Q', kind: 'output', value: false },
+            { id: 'qn', name: 'Q̄', kind: 'output', value: true },
+          ],
+        };
+      }
+      if (kind === 'D_LATCH' || kind === 'D_FLIP_FLOP') {
+        return {
+          inputs: [
+            { id: 'd', name: 'D', kind: 'input', value: false },
+            { id: 'clk', name: 'CLK', kind: 'input', value: false },
+          ],
+          outputs: [
+            { id: 'q', name: 'Q', kind: 'output', value: false },
+            { id: 'qn', name: 'Q̄', kind: 'output', value: true },
+          ],
+        };
+      }
+      if (kind === 'T_FLIP_FLOP') {
+        return {
+          inputs: [
+            { id: 't', name: 'T', kind: 'input', value: false },
+            { id: 'clk', name: 'CLK', kind: 'input', value: false },
+          ],
+          outputs: [
+            { id: 'q', name: 'Q', kind: 'output', value: false },
+            { id: 'qn', name: 'Q̄', kind: 'output', value: true },
+          ],
+        };
+      }
+      if (kind === 'JK_FLIP_FLOP') {
+        return {
+          inputs: [
+            { id: 'j', name: 'J', kind: 'input', value: false },
+            { id: 'k', name: 'K', kind: 'input', value: false },
+            { id: 'clk', name: 'CLK', kind: 'input', value: false },
+          ],
+          outputs: [
+            { id: 'q', name: 'Q', kind: 'output', value: false },
+            { id: 'qn', name: 'Q̄', kind: 'output', value: true },
+          ],
+        };
+      }
       if (kind === 'AND' || kind === 'NAND' || kind === 'OR' || kind === 'NOR' || kind === 'XOR' || kind === 'XNOR') {
         return {
           inputs: [
@@ -705,49 +851,343 @@
       };
     }
     /* ============================================================ SIMULATION */
-    function evalGate(kind, inputs, def, allDefs) {
-      if (kind === 'AND') return [inputs[0] && inputs[1]];
-      if (kind === 'NOT') return [!inputs[0]];
-      if (kind === 'NAND') return [!(inputs[0] && inputs[1])];
-      if (kind === 'NOR') return [!(inputs[0] || inputs[1])];
-      if (kind === 'OR') return [inputs[0] || inputs[1]];
-      if (kind === 'XOR') return [Boolean(inputs[0]) !== Boolean(inputs[1])];
-      if (kind === 'XNOR') return [Boolean(inputs[0]) === Boolean(inputs[1])];
-      if (kind === 'WIRE_REVERSE') return [inputs[0] || false];
-      if (kind === 'INPUT') return [];
-      if (kind === 'OUTPUT') return [];
+    let wasmGateEngine = null;
+    let wasmGateEngineReady = false;
+    let simulationContinuationPending = false;
+    let simulationEvaluationPass = 0;
+    
+    function scheduleSimulationContinuation() {
+      if (simulationContinuationPending || typeof requestAnimationFrame !== 'function') return;
+      simulationContinuationPending = true;
+      requestAnimationFrame(() => {
+        simulationContinuationPending = false;
+        renderSimulationFrame();
+      });
+    }
+    
+    function unsignedLeb(value) {
+      const bytes = [];
+      do {
+        let byte = value & 0x7f;
+        value >>>= 7;
+        if (value !== 0) byte |= 0x80;
+        bytes.push(byte);
+      } while (value !== 0);
+      return bytes;
+    }
+    
+    function wasmSection(sectionId, payload) {
+      return [sectionId, ...unsignedLeb(payload.length), ...payload];
+    }
+    
+    function createGateWasmBytes() {
+      // Wasm module: gate(op,a,b), with op 0..6 for AND, NOT, NAND, NOR, OR, XOR, XNOR.
+      const nestedExpression = (op, expression) => [
+        0x20, 0x00, 0x41, op & 0x7f, 0x46, 0x04, 0x7f,
+        ...expression,
+      ];
+      const i32Const = value => [0x41, value & 0x7f];
+      const localGet = index => [0x20, index];
+      const andExpr = [...localGet(1), ...localGet(2), 0x71];
+      const notExpr = [...localGet(1), 0x45];
+      const nandExpr = [...andExpr, 0x45];
+      const orExpr = [...localGet(1), ...localGet(2), 0x72];
+      const norExpr = [...orExpr, 0x45];
+      const xorExpr = [...localGet(1), ...localGet(2), 0x73];
+      const xnorExpr = [...xorExpr, 0x45];
+    
+      let body = nestedExpression(0, andExpr);
+      body.push(0x05);
+      body.push(...nestedExpression(1, notExpr));
+      body.push(0x05);
+      body.push(...nestedExpression(2, nandExpr));
+      body.push(0x05);
+      body.push(...nestedExpression(3, norExpr));
+      body.push(0x05);
+      body.push(...nestedExpression(4, orExpr));
+      body.push(0x05);
+      body.push(...nestedExpression(5, xorExpr));
+      body.push(0x05);
+      body.push(...nestedExpression(6, xnorExpr));
+      body.push(0x05, ...i32Const(0));
+      for (let i = 0; i < 7; i++) body.push(0x0b);
+      body.push(0x0b);
+    
+      const typePayload = [0x01, 0x60, 0x03, 0x7f, 0x7f, 0x7f, 0x01, 0x7f];
+      const functionPayload = [0x01, 0x00];
+      const exportName = [0x67, 0x61, 0x74, 0x65];
+      const exportPayload = [0x01, ...unsignedLeb(exportName.length), ...exportName, 0x00, 0x00];
+      const functionBody = [0x00, ...body];
+      const codePayload = [0x01, ...unsignedLeb(functionBody.length), ...functionBody];
+    
+      return new Uint8Array([
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+        ...wasmSection(0x01, typePayload),
+        ...wasmSection(0x03, functionPayload),
+        ...wasmSection(0x07, exportPayload),
+        ...wasmSection(0x0a, codePayload),
+      ]);
+    }
+    
+    async function initWasmGateEngine() {
+      if (typeof WebAssembly === 'undefined') return;
+      try {
+        const module = await WebAssembly.compile(createGateWasmBytes());
+        const instance = await WebAssembly.instantiate(module);
+        wasmGateEngine = instance.exports.gate;
+        wasmGateEngineReady = true;
+      } catch (error) {
+        wasmGateEngine = null;
+        wasmGateEngineReady = false;
+      }
+    }
+    
+    function graphHasFeedbackLoop(def) {
+      const outgoing = new Map(def.nodes.map(node => [node.id, []]));
+      for (const connection of def.connections) {
+        const targets = outgoing.get(connection.fromNode);
+        if (targets) targets.push(connection.toNode);
+      }
+      const visiting = new Set();
+      const visited = new Set();
+      const visit = id => {
+        if (visiting.has(id)) return true;
+        if (visited.has(id)) return false;
+        visiting.add(id);
+        for (const next of outgoing.get(id) || []) {
+          if (visit(next)) return true;
+        }
+        visiting.delete(id);
+        visited.add(id);
+        return false;
+      };
+      return def.nodes.some(node => visit(node.id));
+    }
+    
+    function blockHasStatefulLogic(def, allDefs, visited) {
+      if (!def || visited.has(def.id)) return true;
+      if (graphHasFeedbackLoop(def)) return true;
+      const nextVisited = new Set(visited);
+      nextVisited.add(def.id);
+      return def.nodes.some(node => {
+        if (['CLOCK', 'SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(node.kind)) return true;
+        if (node.kind !== 'CUSTOM') return false;
+        const nestedDef = allDefs && allDefs.find(candidate => candidate.id === node.defId);
+        return blockHasStatefulLogic(nestedDef, allDefs, nextVisited);
+      });
+    }
+    
+    function getStatelessCacheKey(kind, inputs, def, allDefs) {
+      if (kind === 'CLOCK' || ['SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(kind)) return null;
+      if (kind === 'CUSTOM' && blockHasStatefulLogic(def, allDefs, new Set())) return null;
       if (kind === 'CUSTOM' && def) {
+        const signature = `${def.nodes.length}:${def.connections.length}:${def.nodes.map(n => n.kind).join(',')}`;
+        return `CUSTOM:${def.id}:${signature}:${inputs.map(Boolean).join('')}`;
+      }
+      return `${kind}:${inputs.map(Boolean).join('')}`;
+    }
+    
+    function getStatelessCacheResult(key) {
+      return state.simulationCache.get(key);
+    }
+    
+    function cacheStatelessResult(key, result) {
+      if (state.simulationCache.size >= 4096) state.simulationCache.clear();
+      state.simulationCache.set(key, result);
+    }
+    
+    function evalGate(kind, inputs, def, allDefs, instanceId) {
+      if (!kind) return [];
+      const cacheKey = getStatelessCacheKey(kind, inputs, def, allDefs);
+      const cached = cacheKey ? getStatelessCacheResult(cacheKey) : undefined;
+      if (cached !== undefined) return cached;
+    
+      let result;
+      const opCodes = { AND: 0, NOT: 1, NAND: 2, NOR: 3, OR: 4, XOR: 5, XNOR: 6 };
+      if (wasmGateEngineReady && Object.prototype.hasOwnProperty.call(opCodes, kind)) {
+        result = [Boolean(wasmGateEngine(opCodes[kind], inputs[0] ? 1 : 0, inputs[1] ? 1 : 0))];
+      } else if (kind === 'AND') result = [Boolean(inputs[0] && inputs[1])];
+      else if (kind === 'NOT') result = [Boolean(!inputs[0])];
+      else if (kind === 'NAND') result = [Boolean(!(inputs[0] && inputs[1]))];
+      else if (kind === 'NOR') result = [Boolean(!(inputs[0] || inputs[1]))];
+      else if (kind === 'OR') result = [Boolean(inputs[0] || inputs[1])];
+      else if (kind === 'XOR') result = [Boolean(inputs[0]) !== Boolean(inputs[1])];
+      else if (kind === 'XNOR') result = [Boolean(inputs[0]) === Boolean(inputs[1])];
+      else if (kind === 'WIRE_REVERSE') result = [Boolean(inputs[0])];
+      else if (kind === 'CLOCK') result = [Boolean(state.clockStates.get(def && def.id))];
+      else if (kind === 'INPUT' || kind === 'OUTPUT') result = [];
+      else if (kind === 'CUSTOM' && def) {
         const toggles = def.nodes.filter(n => n.kind === 'INPUT');
         const lamps = def.nodes.filter(n => n.kind === 'OUTPUT');
         const overrides = new Map();
         toggles.forEach((t, i) => overrides.set(t.id, inputs[i] || false));
-        const inner = evaluateGraph(def.nodes, def.connections, overrides, allDefs || [def]);
-        const outVals = [];
-        for (const lamp of lamps) {
-          const inp = inner.nodeInputs[lamp.id] && inner.nodeInputs[lamp.id]['in'] !== undefined ? inner.nodeInputs[lamp.id]['in'] : false;
-          outVals.push(inp);
-        }
-        return outVals;
-      }
-      return [];
+        const inner = evaluateGraph(
+          def.nodes,
+          def.connections,
+          overrides,
+          allDefs || [def],
+          undefined,
+          `custom:${instanceId}:${def.id}`
+        );
+        result = lamps.map(lamp =>
+          Boolean(inner.nodeInputs[lamp.id] && inner.nodeInputs[lamp.id]['in'])
+        );
+      } else if (['SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(kind)) {
+        result = null;
+      } else result = [];
+    
+      if (result !== null && cacheKey) cacheStatelessResult(cacheKey, result);
+      return result || [];
     }
     
-    function evaluateGraph(nodes, connections, toggleOverrides, defs, wireTransit) {
+    function evaluateSequentialNode(n, inVals, memoryScope) {
+      const stateKey = memoryScope ? `${memoryScope}/${n.id}` : n.id;
+      const previous = state.sequentialState.get(stateKey) || { q: false, previousClock: false };
+      let q = Boolean(previous.q);
+      let clock = false;
+    
+      if (n.kind === 'SR_LATCH') {
+        const set = Boolean(inVals[0]);
+        const reset = Boolean(inVals[1]);
+        if (set && !reset) q = true;
+        else if (!set && reset) q = false;
+      } else if (n.kind === 'D_LATCH') {
+        clock = Boolean(inVals[1]);
+        if (clock) q = Boolean(inVals[0]);
+      } else {
+        clock = Boolean(inVals[n.kind === 'T_FLIP_FLOP' ? 1 : (n.kind === 'JK_FLIP_FLOP' ? 2 : 1)]);
+        const risingEdge = clock && !Boolean(previous.previousClock);
+        if (risingEdge) {
+          if (n.kind === 'D_FLIP_FLOP') q = Boolean(inVals[0]);
+          else if (n.kind === 'T_FLIP_FLOP') q = Boolean(inVals[0]) ? !q : q;
+          else if (n.kind === 'JK_FLIP_FLOP') {
+            const j = Boolean(inVals[0]);
+            const k = Boolean(inVals[1]);
+            if (j && k) q = !q;
+            else if (j) q = true;
+            else if (k) q = false;
+          }
+        }
+      }
+    
+      state.sequentialState.set(stateKey, { q, previousClock: clock });
+      return [q, !q];
+    }
+    
+    function clearNodeSimulationState(nodeId) {
+      state.sequentialState.delete(nodeId);
+      state.clockStates.delete(nodeId);
+      state.clockTransitions.delete(nodeId);
+      state.graphOutputMemory.delete(nodeId);
+      const customPrefix = `custom:${nodeId}:`;
+      for (const key of state.sequentialState.keys()) {
+        if (key.startsWith(customPrefix) || key.includes(`:${nodeId}:`)) state.sequentialState.delete(key);
+      }
+      for (const key of state.graphOutputMemory.keys()) {
+        if (key.startsWith(customPrefix) || key.includes(`:${nodeId}:`)) state.graphOutputMemory.delete(key);
+      }
+    }
+    
+    function evaluateGraph(nodes, connections, toggleOverrides, defs, wireTransit, memoryScope) {
       const nodeOutputs = {};
       const nodeInputs = {};
+      const useMemory = wireTransit === undefined && (toggleOverrides === undefined || memoryScope !== undefined);
+      const memoryKeyForNode = node => memoryScope ? `${memoryScope}/${node.id}` : node.id;
       for (const n of nodes) {
         nodeOutputs[n.id] = {};
         nodeInputs[n.id] = {};
         for (const p of n.inputs) nodeInputs[n.id][p.id] = false;
-        for (const p of n.outputs) nodeOutputs[n.id][p.id] = false;
+        const savedOutputs = useMemory ? state.graphOutputMemory.get(memoryKeyForNode(n)) : undefined;
+        for (const p of n.outputs) {
+          nodeOutputs[n.id][p.id] = savedOutputs && savedOutputs[p.id] !== undefined
+            ? Boolean(savedOutputs[p.id])
+            : false;
+        }
       }
       for (const n of nodes) {
         if (n.kind === 'INPUT') {
-          const v = (toggleOverrides && toggleOverrides.get(n.id)) !== undefined ? toggleOverrides.get(n.id) : (n.state || false);
+          const v = (toggleOverrides && toggleOverrides.get(n.id)) !== undefined
+            ? Boolean(toggleOverrides.get(n.id))
+            : Boolean(n.state);
           for (const p of n.outputs) nodeOutputs[n.id][p.id] = v;
         }
       }
-      const maxIterations = 200;
+    
+      if (wireTransit === undefined) {
+        const nodesById = new Map(nodes.map(node => [node.id, node]));
+        const outgoing = new Map(nodes.map(node => [node.id, []]));
+        for (const connection of connections) {
+          const list = outgoing.get(connection.fromNode);
+          if (list) list.push(connection);
+        }
+    
+        const queue = [];
+        const queued = new Set();
+        const enqueue = id => {
+          const node = nodesById.get(id);
+          if (node && node.kind !== 'INPUT' && node.kind !== 'OUTPUT' && !queued.has(id)) {
+            queued.add(id);
+            queue.push(id);
+          }
+        };
+        const propagate = connection => {
+          const value = nodeOutputs[connection.fromNode] && nodeOutputs[connection.fromNode][connection.fromPin];
+          if (value === undefined) return;
+          const inputs = nodeInputs[connection.toNode];
+          if (!inputs || inputs[connection.toPin] === value) return;
+          inputs[connection.toPin] = value;
+          enqueue(connection.toNode);
+        };
+    
+        connections.forEach(propagate);
+        nodes.forEach(node => enqueue(node.id));
+        let cursor = 0;
+        let operations = 0;
+        const baseOperationBudget = Math.max(64, Math.min(240, nodes.length * 8));
+        const operationBudgetOffset = useMemory ? simulationEvaluationPass++ % 17 : 0;
+        const maxOperations = baseOperationBudget + operationBudgetOffset;
+        while (cursor < queue.length && operations < maxOperations) {
+          const nodeId = queue[cursor++];
+          queued.delete(nodeId);
+          operations += 1;
+          const node = nodesById.get(nodeId);
+          if (!node) continue;
+    
+          const inVals = node.inputs.map(pin => Boolean(nodeInputs[node.id][pin.id]));
+          let outVals;
+          if (['SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(node.kind)) {
+            outVals = evaluateSequentialNode(node, inVals, memoryScope);
+          } else if (node.kind === 'CLOCK') {
+            outVals = [Boolean(state.clockStates.get(node.id))];
+          } else {
+            const def = node.defId ? (defs && defs.find(item => item.id === node.defId)) : undefined;
+            const instanceId = memoryScope ? `${memoryScope}/${node.id}` : node.id;
+            outVals = evalGate(node.kind, inVals, def, defs, instanceId);
+          }
+    
+          node.outputs.forEach((pin, index) => {
+            const next = Boolean(outVals[index]);
+            if (nodeOutputs[node.id][pin.id] !== next) {
+              nodeOutputs[node.id][pin.id] = next;
+              (outgoing.get(node.id) || []).forEach(propagate);
+            }
+          });
+        }
+    
+        if (useMemory) {
+          const liveIds = memoryScope
+            ? null
+            : new Set(nodes.map(node => node.id));
+          for (const id of state.graphOutputMemory.keys()) {
+            if (!memoryScope && !id.includes('/') && !liveIds.has(id)) state.graphOutputMemory.delete(id);
+          }
+          for (const node of nodes) state.graphOutputMemory.set(memoryKeyForNode(node), { ...nodeOutputs[node.id] });
+          if (cursor < queue.length) scheduleSimulationContinuation();
+        }
+        return { nodeOutputs, nodeInputs };
+      }
+    
+      const maxIterations = Math.max(20, Math.min(200, nodes.length * 4));
       for (let iter = 0; iter < maxIterations; iter++) {
         let changed = false;
         for (const c of connections) {
@@ -756,7 +1196,7 @@
           const dst = nodeInputs[c.toNode] && nodeInputs[c.toNode][c.toPin];
           if (dst === undefined) continue;
           const transit = wireTransit && wireTransit[c.id];
-          const effective = transit !== undefined ? transit : src;
+          const effective = transit !== undefined ? Boolean(transit) : Boolean(src);
           if (effective !== dst) {
             nodeInputs[c.toNode][c.toPin] = effective;
             changed = true;
@@ -764,11 +1204,19 @@
         }
         for (const n of nodes) {
           if (n.kind === 'INPUT' || n.kind === 'OUTPUT') continue;
-          const inVals = n.inputs.map(p => nodeInputs[n.id][p.id] || false);
-          const def = n.defId ? (defs && defs.find(d => d.id === n.defId)) : undefined;
-          const outVals = evalGate(n.kind, inVals, def, defs);
+          const inVals = n.inputs.map(p => Boolean(nodeInputs[n.id][p.id]));
+          let outVals;
+          if (['SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(n.kind)) {
+            outVals = evaluateSequentialNode(n, inVals);
+          } else if (n.kind === 'CLOCK') {
+            outVals = [Boolean(state.clockStates.get(n.id))];
+          } else {
+            const def = n.defId ? (defs && defs.find(d => d.id === n.defId)) : undefined;
+            const instanceId = memoryScope ? `${memoryScope}/${n.id}` : n.id;
+            outVals = evalGate(n.kind, inVals, def, defs, instanceId);
+          }
           n.outputs.forEach((p, i) => {
-            const next = outVals[i] || false;
+            const next = Boolean(outVals[i]);
             if (nodeOutputs[n.id][p.id] !== next) {
               nodeOutputs[n.id][p.id] = next;
               changed = true;
@@ -781,7 +1229,8 @@
     }
     
     function getEvalResult() {
-      return evaluateGraph(state.nodes, state.connections, undefined, state.customBlocks, state.wireTransit);
+      const wireTransit = state.wireDelay > 0 ? state.wireTransit : undefined;
+      return evaluateGraph(state.nodes, state.connections, undefined, state.customBlocks, wireTransit);
     }
     /* ============================================================ WIRE DELAY */
     function tickWires() {
@@ -789,7 +1238,7 @@
         wireInternals.clear();
         if (Object.keys(state.wireTransit).length > 0) {
           state.wireTransit = {};
-          notify();
+          renderSimulationFrame();
         }
         return;
       }
@@ -807,14 +1256,13 @@
           internal.sourceValue = src;
           internal.lastChangeTime = now;
         }
+        const elapsed = now - internal.lastChangeTime;
         const prevTransit = state.wireTransit[c.id];
-        const transitValue = prevTransit !== undefined ? prevTransit : false;
-        if (now - internal.lastChangeTime >= state.wireDelay && transitValue !== internal.sourceValue) {
-          newTransit[c.id] = internal.sourceValue;
-          anyChanged = true;
-        } else {
-          newTransit[c.id] = transitValue;
+        const currentValue = prevTransit !== undefined ? Boolean(prevTransit) : false;
+        if (elapsed >= state.wireDelay) {
+          if (currentValue !== internal.sourceValue) anyChanged = true;
         }
+        newTransit[c.id] = elapsed >= state.wireDelay ? internal.sourceValue : currentValue;
       }
       const liveConnIds = new Set(state.connections.map(c => c.id));
       for (const id of wireInternals.keys()) {
@@ -823,7 +1271,7 @@
       const wireSetChanged = Object.keys(state.wireTransit).length !== Object.keys(newTransit).length;
       if (anyChanged || wireSetChanged) {
         state.wireTransit = newTransit;
-        notify();
+        renderSimulationFrame();
       }
     }
     /* ============================================================ STORE ACTIONS */
@@ -865,6 +1313,7 @@
     function removeNode(id) {
       state.nodes = state.nodes.filter(n => n.id !== id);
       state.connections = state.connections.filter(c => c.fromNode !== id && c.toNode !== id);
+      clearNodeSimulationState(id);
       notify();
     }
     
@@ -903,7 +1352,6 @@
         notify();
         return false;
       }
-      if (from.nodeId === to.nodeId) { state.pendingFrom = null; notify(); return false; }
       const exists = state.connections.find(c => c.toNode === to.nodeId && c.toPin === to.pinId);
       if (exists) { state.pendingFrom = null; notify(); return false; }
       const conn = { id: uid('conn'), fromNode: from.nodeId, fromPin: from.pinId, toNode: to.nodeId, toPin: to.pinId };
@@ -1010,9 +1458,11 @@
       return getConnectedNodeIdsFromSeed(seed);
     }
     
-    function enterSelectionMode() {
+    function enterSelectionMode(name, description) {
       state.selectionMode = true;
       state.selectionRect = null;
+      state.selectionBlockName = name || nextBlockName(state.customBlocks);
+      state.selectionBlockDescription = description !== undefined ? description : 'Custom Block';
       state.pendingFrom = null;
       document.body.style.cursor = 'crosshair';
       notify();
@@ -1021,6 +1471,8 @@
     function cancelSelectionMode() {
       state.selectionMode = false;
       state.selectionRect = null;
+      state.selectionBlockName = null;
+      state.selectionBlockDescription = null;
       document.body.style.cursor = '';
       notify();
     }
@@ -1047,6 +1499,8 @@
       state.customBlocks = [...state.customBlocks, def];
       state.selectionMode = false;
       state.selectionRect = null;
+      state.selectionBlockName = null;
+      state.selectionBlockDescription = null;
       document.body.style.cursor = '';
       notify();
       const label = def.name || 'Block';
@@ -1151,6 +1605,7 @@
       }
       const doomedNodeIds = new Set(state.nodes.filter(n => n.defId === defId).map(n => n.id));
       state.customBlocks = state.customBlocks.filter(b => b.id !== defId);
+      doomedNodeIds.forEach(clearNodeSimulationState);
       state.nodes = state.nodes.filter(n => n.defId !== defId);
       state.connections = state.connections.filter(c => !doomedNodeIds.has(c.fromNode) && !doomedNodeIds.has(c.toNode));
       notify();
@@ -1203,6 +1658,11 @@
       state.settingsSecretReady = false;
       state.settingsSecretClickCount = 0;
       state.secretWireUnlocked = false;
+      state.sequentialState.clear();
+      state.clockStates.clear();
+      state.clockTransitions.clear();
+      state.simulationCache.clear();
+      state.graphOutputMemory.clear();
       notify();
     }
     /* ============================================================ TOASTS */
@@ -1368,7 +1828,7 @@
       cancelBtn.onclick = () => { dlg.close(); if (onCancel) onCancel(); };
       selectBtn.onclick = () => {
         dlg.close();
-        enterSelectionMode();
+        enterSelectionMode(nameInput.value.trim() || defaultName, descInput.value);
       };
       confirmBtn.onclick = doBuild;
       nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doBuild(); });
@@ -1757,6 +2217,21 @@
       document.getElementById('puzzleModeBtn').onclick = showPuzzleMenu;
     }
     
+    function setMobileSidebarOpen(open) {
+      const app = document.getElementById('app');
+      const toggle = document.getElementById('mobileSidebarToggle');
+      if (!app) return;
+      app.classList.toggle('mobile-sidebar-open', open);
+      if (toggle) {
+        toggle.setAttribute('aria-expanded', String(open));
+        toggle.textContent = open ? 'Close blocks' : 'Blocks';
+      }
+    }
+    
+    function closeMobileSidebar() {
+      if (window.matchMedia('(max-width: 760px)').matches) setMobileSidebarOpen(false);
+    }
+    
     function renderHeader() {
       const headerBrand = document.getElementById('headerBrand');
       if (headerBrand) {
@@ -1767,6 +2242,14 @@
       const isEditing = state.editingBlockId !== null;
       const editingBlock = state.customBlocks.find(b => b.id === state.editingBlockId);
       headerRight.innerHTML = '';
+      const mobileSidebarToggle = el('button', 'btn mobile-sidebar-toggle', {
+        id: 'mobileSidebarToggle',
+        type: 'button',
+        'aria-controls': 'sidebar',
+        'aria-expanded': String(document.getElementById('app').classList.contains('mobile-sidebar-open')),
+        onclick: () => setMobileSidebarOpen(!document.getElementById('app').classList.contains('mobile-sidebar-open')),
+      }, document.getElementById('app').classList.contains('mobile-sidebar-open') ? 'Close blocks' : 'Blocks');
+      headerRight.appendChild(mobileSidebarToggle);
       if (state.currentPuzzle) {
         const indicator = el('div', 'editing-indicator');
         indicator.textContent = `Puzzle · ${state.currentPuzzle.puzzle.title}`;
@@ -1826,7 +2309,10 @@
           inventoryCount: state.currentPuzzle ? remaining : undefined,
           disabled: remaining <= 0,
           onAdd: () => {
-            if (remaining > 0) addNodeFromTemplate(item.kind, { x: WORLD_WIDTH / 2 - 70, y: WORLD_HEIGHT / 2 - 30 });
+            if (remaining > 0) {
+              addNodeFromTemplate(item.kind, { x: WORLD_WIDTH / 2 - 70, y: WORLD_HEIGHT / 2 - 30 });
+              closeMobileSidebar();
+            }
           },
           onDragStart: (e) => {
             if (remaining <= 0) { e.preventDefault(); return; }
@@ -1846,7 +2332,10 @@
           icon: ICONS.cpu,
           isCustom: true,
           isBeingEdited: isEditingThis,
-          onAdd: () => addNodeFromTemplate('CUSTOM', { x: WORLD_WIDTH / 2 - 70, y: WORLD_HEIGHT / 2 - 30 }, b.id),
+          onAdd: () => {
+            addNodeFromTemplate('CUSTOM', { x: WORLD_WIDTH / 2 - 70, y: WORLD_HEIGHT / 2 - 30 }, b.id);
+            closeMobileSidebar();
+          },
           onDragStart: (e) => {
             if (isEditingThis) { e.preventDefault(); return; }
             e.dataTransfer.setData('application/json', JSON.stringify({ kind: 'CUSTOM', defId: b.id }));
@@ -2048,8 +2537,11 @@
             showToast('Nothing selected', 'Drag a rectangle to select the circuit you want to build.', 'toast-error');
             return;
           }
-          const defaultName = nextBlockName(state.customBlocks);
-          buildSelectedBlock(defaultName, 'Custom Block');
+          const name = state.selectionBlockName || nextBlockName(state.customBlocks);
+          const description = state.selectionBlockDescription !== null
+            ? state.selectionBlockDescription
+            : 'Custom Block';
+          buildSelectedBlock(name, description);
         };
         actions.appendChild(cancelBtn);
         actions.appendChild(doneBtn);
@@ -2238,11 +2730,11 @@
       const svg = document.getElementById('wireSvg');
       Array.from(world.children).forEach(c => { if (c !== svg) c.remove(); });
     
-      // Render wires
-      renderWires();
+      const evalResult = getEvalResult();
+      // Render wires and nodes from the same sequential simulation step.
+      renderWires(evalResult);
     
       // Render nodes
-      const evalResult = getEvalResult();
       state.nodes.forEach(n => {
         const nodeEl = renderNode(n, evalResult);
         world.appendChild(nodeEl);
@@ -2283,10 +2775,10 @@
       if (!hasNodes) prevHadNodes = false;
     }
     
-    function renderWires() {
+    function renderWires(evalResult) {
       const svg = document.getElementById('wireSvg');
       svg.innerHTML = '';
-      const evalResult = getEvalResult();
+      evalResult = evalResult || getEvalResult();
       const wireTransit = state.wireTransit;
       const pendingFrom = state.pendingFrom;
     
@@ -2296,7 +2788,7 @@
         if (!from || !to) return;
         const transit = wireTransit[c.id];
         const sourceVal = (evalResult.nodeOutputs[c.fromNode] && evalResult.nodeOutputs[c.fromNode][c.fromPin]) || false;
-        const powered = transit !== undefined ? transit : sourceVal;
+        const powered = transit !== undefined ? Boolean(transit) : Boolean(sourceVal);
         const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         hitPath.setAttribute('d', wirePath(from, to, c.fromNode, c.toNode));
@@ -2305,13 +2797,24 @@
         hitPath.setAttribute('fill', 'none');
         hitPath.classList.add('hit');
         hitPath.onclick = () => removeConnection(c.id);
+        const coldPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        coldPath.setAttribute('d', wirePath(from, to, c.fromNode, c.toNode));
+        coldPath.setAttribute('stroke', 'var(--lb-wire-cold)');
+        coldPath.setAttribute('stroke-width', '2.5');
+        coldPath.setAttribute('fill', 'none');
+        g.appendChild(hitPath);
+        g.appendChild(coldPath);
+    
+        g.dataset.connectionId = c.id;
         const visPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        visPath.dataset.wireHot = 'true';
         visPath.setAttribute('d', wirePath(from, to, c.fromNode, c.toNode));
-        visPath.setAttribute('stroke', powered ? 'var(--lb-wire-hot)' : 'var(--lb-wire-cold)');
+        visPath.setAttribute('stroke', 'var(--lb-wire-hot)');
         visPath.setAttribute('stroke-width', '2.5');
         visPath.setAttribute('fill', 'none');
-        if (powered) visPath.style.filter = 'drop-shadow(0 0 4px var(--lb-pin-active))';
-        g.appendChild(hitPath);
+        visPath.style.opacity = powered ? '1' : '0';
+        visPath.style.filter = 'drop-shadow(0 0 4px var(--lb-pin-active))';
+        visPath.style.pointerEvents = 'none';
         g.appendChild(visPath);
         svg.appendChild(g);
       });
@@ -2332,6 +2835,54 @@
           svg.appendChild(path);
         }
       }
+    }
+    
+    function renderSimulationFrame() {
+      if (state.view !== 'sandbox' && state.view !== 'puzzle') return;
+      const world = document.getElementById('world');
+      if (!world) return;
+    
+      const evalResult = getEvalResult();
+      const renderedNodes = new Map(
+        Array.from(world.querySelectorAll('.node')).map(nodeEl => [nodeEl.dataset.nodeId, nodeEl])
+      );
+      state.nodes.forEach(node => {
+        const nodeEl = renderedNodes.get(node.id);
+        if (!nodeEl) return;
+        const inputs = evalResult.nodeInputs[node.id] || {};
+        const outputs = evalResult.nodeOutputs[node.id] || {};
+    
+        nodeEl.querySelectorAll('.pin-dot').forEach(dot => {
+          const powered = Boolean((dot.dataset.pinKind === 'input' ? inputs : outputs)[dot.dataset.pinId]);
+          dot.classList.toggle('powered', powered);
+          dot.style.backgroundColor = powered ? 'var(--lb-pin-active)' : 'var(--lb-pin)';
+        });
+        nodeEl.querySelectorAll('.pin-row[data-pin-id]').forEach(row => {
+          row.querySelector('.pin-name').classList.toggle(
+            'powered',
+            Boolean((row.dataset.pinKind === 'input' ? inputs : outputs)[row.dataset.pinId])
+          );
+        });
+        if (node.kind === 'OUTPUT') {
+          const powered = Boolean(inputs.in);
+          nodeEl.querySelector('.lamp-body').classList.toggle('powered', powered);
+          nodeEl.querySelector('.lamp-indicator').classList.toggle('powered', powered);
+        } else if (node.kind === 'WIRE_REVERSE') {
+          const color = outputs.out ? 'var(--lb-wire-hot)' : 'var(--lb-wire-cold)';
+          nodeEl.querySelectorAll('path').forEach(path => path.setAttribute('stroke', color));
+        }
+      });
+    
+      const connections = new Map(state.connections.map(connection => [connection.id, connection]));
+      world.querySelectorAll('#wireSvg [data-connection-id]').forEach(group => {
+        const connection = connections.get(group.dataset.connectionId);
+        if (!connection) return;
+        const transit = state.wireTransit[connection.id];
+        const sourceVal = evalResult.nodeOutputs[connection.fromNode] &&
+          evalResult.nodeOutputs[connection.fromNode][connection.fromPin];
+        group.querySelector('[data-wire-hot]').style.opacity =
+          (transit !== undefined ? Boolean(transit) : Boolean(sourceVal)) ? '1' : '0';
+      });
     }
     
     function pinGlobalPos(nodeId, pinId, kind) {
@@ -2459,7 +3010,7 @@
       const headerH = isTerminal ? TERMINAL_HEADER_HEIGHT : HEADER_HEIGHT;
     
       let headerLabel = '';
-      if (['AND', 'NOT', 'NAND', 'NOR', 'OR', 'XOR', 'XNOR'].includes(node.kind)) headerLabel = node.kind;
+      if (['AND', 'NOT', 'NAND', 'NOR', 'OR', 'XOR', 'XNOR', 'CLOCK', 'SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(node.kind)) headerLabel = node.kind.replace(/_/g, ' ');
       else if (node.kind === 'INPUT') headerLabel = 'Toggle';
       else if (node.kind === 'OUTPUT') headerLabel = 'Lamp';
       else if (node.kind === 'CUSTOM') {
@@ -2532,6 +3083,8 @@
       pins.forEach(p => {
         const isPowered = poweredMap[p.id] || false;
         const row = el('div', 'pin-row');
+        row.dataset.pinId = p.id;
+        row.dataset.pinKind = side === 'left' ? 'input' : 'output';
         row.style.height = PIN_HEIGHT + 'px';
         const name = el('span', 'pin-name' + (isPowered ? ' powered' : ''));
         name.textContent = p.name;
@@ -2594,12 +3147,10 @@
     
     function renderTerminalRename(node, headerLabel) {
       const wrapper = el('div', 'terminal-rename');
-      // We'll just show the name as a button - double-click to edit
       const btn = el('button', 'rename-display');
       btn.textContent = node.name || headerLabel;
-      btn.title = 'Double-click to rename';
-      btn.ondblclick = (e) => { e.stopPropagation(); startTerminalRename(wrapper, node, headerLabel); };
-      btn.onclick = (e) => e.stopPropagation();
+      btn.title = 'Click to rename';
+      btn.onclick = (e) => { e.stopPropagation(); startTerminalRename(wrapper, node, headerLabel); };
       btn.addEventListener('mousedown', (e) => e.stopPropagation());
       wrapper.appendChild(btn);
       return wrapper;
@@ -2690,6 +3241,10 @@
     
     function setupCanvasEvents() {
       const viewport = document.getElementById('viewport');
+      viewport.addEventListener('pointerdown', closeMobileSidebar);
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeMobileSidebar();
+      });
     
       // Drag-and-drop from sidebar
       viewport.addEventListener('dragover', (e) => {
@@ -2831,6 +3386,49 @@
     }
     /* ============================================================ WIRE DELAY RAF LOOP */
     let rafId = null;
+    let clockRafId = null;
+    let clockLastFrameTime = 0;
+    
+    function advanceClockNodes(now) {
+      let changed = false;
+      const liveClockIds = new Set(state.nodes.filter(node => node.kind === 'CLOCK').map(node => node.id));
+      for (const id of state.clockStates.keys()) {
+        if (!liveClockIds.has(id)) state.clockStates.delete(id);
+      }
+      for (const id of state.clockTransitions.keys()) {
+        if (!liveClockIds.has(id)) state.clockTransitions.delete(id);
+      }
+      for (const node of state.nodes) {
+        if (node.kind !== 'CLOCK') continue;
+        const period = Math.max(20, Number(node.periodMs) || 500);
+        let transition = state.clockTransitions.get(node.id);
+        if (!transition) {
+          transition = { lastToggle: now, phase: false };
+          state.clockTransitions.set(node.id, transition);
+          state.clockStates.set(node.id, false);
+        }
+        if (now - transition.lastToggle >= period) {
+          const elapsedPeriods = Math.floor((now - transition.lastToggle) / period);
+          transition.lastToggle += elapsedPeriods * period;
+          if (elapsedPeriods % 2 === 1) transition.phase = !transition.phase;
+          state.clockStates.set(node.id, transition.phase);
+          changed = true;
+        }
+      }
+      if (changed) renderSimulationFrame();
+    }
+    
+    function startClockLoop() {
+      if (clockRafId !== null) cancelAnimationFrame(clockRafId);
+      const loop = (now) => {
+        if (!clockLastFrameTime) clockLastFrameTime = now;
+        advanceClockNodes(now);
+        clockLastFrameTime = now;
+        clockRafId = requestAnimationFrame(loop);
+      };
+      clockRafId = requestAnimationFrame(loop);
+    }
+    
     function startWireDelayLoop() {
       if (rafId !== null) cancelAnimationFrame(rafId);
       if (state.wireDelay <= 0) return;
@@ -3615,14 +4213,23 @@
       } else {
         const headers = Array.from({ length: puzzle.input_count }, (_, i) => `I${i}`)
           .concat(Array.from({ length: puzzle.output_count }, (_, i) => `O${i}`));
-        const renderTable = (rows) => `
+        const renderTable = (rows, highlightIncorrectOutputs = false) => `
           <table class="truth-table"><thead><tr>${headers.map(value => `<th>${value}</th>`).join('')}</tr></thead>
-          <tbody>${rows.map(row => `<tr>${row.map(value => `<td>${value ? 1 : 0}</td>`).join('')}</tr>`).join('')}</tbody></table>
+          <tbody>${rows.map((row, rowIndex) => `<tr>${row.map((value, columnIndex) => {
+            const expected = puzzle.truth_table[rowIndex][columnIndex];
+            const isIncorrectOutput = highlightIncorrectOutputs
+              && columnIndex >= puzzle.input_count
+              && Boolean(value) !== Boolean(expected);
+            const attributes = isIncorrectOutput
+              ? ` class="truth-table-mismatch" title="Expected ${expected ? 1 : 0}"`
+              : '';
+            return `<td${attributes}>${value ? 1 : 0}</td>`;
+          }).join('')}</tr>`).join('')}</tbody></table>
         `;
         body.innerHTML = `
           <p>The circuit does not match the required truth table.</p>
           <div class="truth-table-result"><strong>Expected</strong>${renderTable(puzzle.truth_table)}</div>
-          <div class="truth-table-result"><strong>Your circuit</strong>${renderTable(currentTable)}</div>
+          <div class="truth-table-result"><strong>Your circuit</strong>${renderTable(currentTable, true)}</div>
           <div class="dialog-actions"><button class="btn btn-primary" id="puzzleResultOk">OK</button></div>
         `;
       }
@@ -3749,6 +4356,7 @@
       setupPendingWireTracking();
       loadStateFromLocalStorage();
       loadPuzzleProgress();
+      initWasmGateEngine();
       renderAll();
       subscribe(() => {
         saveStateToLocalStorage();

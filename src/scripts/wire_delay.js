@@ -4,7 +4,7 @@ function tickWires() {
     wireInternals.clear();
     if (Object.keys(state.wireTransit).length > 0) {
       state.wireTransit = {};
-      notify();
+      renderSimulationFrame();
     }
     return;
   }
@@ -22,14 +22,13 @@ function tickWires() {
       internal.sourceValue = src;
       internal.lastChangeTime = now;
     }
+    const elapsed = now - internal.lastChangeTime;
     const prevTransit = state.wireTransit[c.id];
-    const transitValue = prevTransit !== undefined ? prevTransit : false;
-    if (now - internal.lastChangeTime >= state.wireDelay && transitValue !== internal.sourceValue) {
-      newTransit[c.id] = internal.sourceValue;
-      anyChanged = true;
-    } else {
-      newTransit[c.id] = transitValue;
+    const currentValue = prevTransit !== undefined ? Boolean(prevTransit) : false;
+    if (elapsed >= state.wireDelay) {
+      if (currentValue !== internal.sourceValue) anyChanged = true;
     }
+    newTransit[c.id] = elapsed >= state.wireDelay ? internal.sourceValue : currentValue;
   }
   const liveConnIds = new Set(state.connections.map(c => c.id));
   for (const id of wireInternals.keys()) {
@@ -38,6 +37,6 @@ function tickWires() {
   const wireSetChanged = Object.keys(state.wireTransit).length !== Object.keys(newTransit).length;
   if (anyChanged || wireSetChanged) {
     state.wireTransit = newTransit;
-    notify();
+    renderSimulationFrame();
   }
 }

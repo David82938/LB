@@ -4,6 +4,7 @@ function init() {
   setupPendingWireTracking();
   loadStateFromLocalStorage();
   loadPuzzleProgress();
+  initWasmGateEngine();
   renderAll();
   subscribe(() => {
     saveStateToLocalStorage();
