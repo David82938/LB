@@ -118,7 +118,6 @@ function blockHasStatefulLogic(def, allDefs, visited) {
   const nextVisited = new Set(visited);
   nextVisited.add(def.id);
   return def.nodes.some(node => {
-    if (['CLOCK', 'SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(node.kind)) return true;
     if (node.kind !== 'CUSTOM') return false;
     const nestedDef = allDefs && allDefs.find(candidate => candidate.id === node.defId);
     return blockHasStatefulLogic(nestedDef, allDefs, nextVisited);
@@ -126,7 +125,6 @@ function blockHasStatefulLogic(def, allDefs, visited) {
 }
 
 function getStatelessCacheKey(kind, inputs, def, allDefs) {
-  if (kind === 'CLOCK' || ['SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(kind)) return null;
   if (kind === 'CUSTOM' && blockHasStatefulLogic(def, allDefs, new Set())) return null;
   if (kind === 'CUSTOM' && def) {
     const signature = `${def.nodes.length}:${def.connections.length}:${def.nodes.map(n => n.kind).join(',')}`;
@@ -162,7 +160,6 @@ function evalGate(kind, inputs, def, allDefs, instanceId) {
   else if (kind === 'XOR') result = [Boolean(inputs[0]) !== Boolean(inputs[1])];
   else if (kind === 'XNOR') result = [Boolean(inputs[0]) === Boolean(inputs[1])];
   else if (kind === 'WIRE_REVERSE') result = [Boolean(inputs[0])];
-  else if (kind === 'CLOCK') result = [Boolean(state.clockStates.get(def && def.id))];
   else if (kind === 'INPUT' || kind === 'OUTPUT') result = [];
   else if (kind === 'CUSTOM' && def) {
     const toggles = def.nodes.filter(n => n.kind === 'INPUT');
@@ -180,57 +177,15 @@ function evalGate(kind, inputs, def, allDefs, instanceId) {
     result = lamps.map(lamp =>
       Boolean(inner.nodeInputs[lamp.id] && inner.nodeInputs[lamp.id]['in'])
     );
-  } else if (['SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(kind)) {
-    result = null;
   } else result = [];
 
   if (result !== null && cacheKey) cacheStatelessResult(cacheKey, result);
   return result || [];
 }
 
-function evaluateSequentialNode(n, inVals, memoryScope) {
-  const stateKey = memoryScope ? `${memoryScope}/${n.id}` : n.id;
-  const previous = state.sequentialState.get(stateKey) || { q: false, previousClock: false };
-  let q = Boolean(previous.q);
-  let clock = false;
-
-  if (n.kind === 'SR_LATCH') {
-    const set = Boolean(inVals[0]);
-    const reset = Boolean(inVals[1]);
-    if (set && !reset) q = true;
-    else if (!set && reset) q = false;
-  } else if (n.kind === 'D_LATCH') {
-    clock = Boolean(inVals[1]);
-    if (clock) q = Boolean(inVals[0]);
-  } else {
-    clock = Boolean(inVals[n.kind === 'T_FLIP_FLOP' ? 1 : (n.kind === 'JK_FLIP_FLOP' ? 2 : 1)]);
-    const risingEdge = clock && !Boolean(previous.previousClock);
-    if (risingEdge) {
-      if (n.kind === 'D_FLIP_FLOP') q = Boolean(inVals[0]);
-      else if (n.kind === 'T_FLIP_FLOP') q = Boolean(inVals[0]) ? !q : q;
-      else if (n.kind === 'JK_FLIP_FLOP') {
-        const j = Boolean(inVals[0]);
-        const k = Boolean(inVals[1]);
-        if (j && k) q = !q;
-        else if (j) q = true;
-        else if (k) q = false;
-      }
-    }
-  }
-
-  state.sequentialState.set(stateKey, { q, previousClock: clock });
-  return [q, !q];
-}
-
 function clearNodeSimulationState(nodeId) {
-  state.sequentialState.delete(nodeId);
-  state.clockStates.delete(nodeId);
-  state.clockTransitions.delete(nodeId);
   state.graphOutputMemory.delete(nodeId);
   const customPrefix = `custom:${nodeId}:`;
-  for (const key of state.sequentialState.keys()) {
-    if (key.startsWith(customPrefix) || key.includes(`:${nodeId}:`)) state.sequentialState.delete(key);
-  }
   for (const key of state.graphOutputMemory.keys()) {
     if (key.startsWith(customPrefix) || key.includes(`:${nodeId}:`)) state.graphOutputMemory.delete(key);
   }
@@ -302,16 +257,9 @@ function evaluateGraph(nodes, connections, toggleOverrides, defs, wireTransit, m
       if (!node) continue;
 
       const inVals = node.inputs.map(pin => Boolean(nodeInputs[node.id][pin.id]));
-      let outVals;
-      if (['SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(node.kind)) {
-        outVals = evaluateSequentialNode(node, inVals, memoryScope);
-      } else if (node.kind === 'CLOCK') {
-        outVals = [Boolean(state.clockStates.get(node.id))];
-      } else {
-        const def = node.defId ? (defs && defs.find(item => item.id === node.defId)) : undefined;
-        const instanceId = memoryScope ? `${memoryScope}/${node.id}` : node.id;
-        outVals = evalGate(node.kind, inVals, def, defs, instanceId);
-      }
+      const def = node.defId ? (defs && defs.find(item => item.id === node.defId)) : undefined;
+      const instanceId = memoryScope ? `${memoryScope}/${node.id}` : node.id;
+      const outVals = evalGate(node.kind, inVals, def, defs, instanceId);
 
       node.outputs.forEach((pin, index) => {
         const next = Boolean(outVals[index]);
@@ -353,16 +301,9 @@ function evaluateGraph(nodes, connections, toggleOverrides, defs, wireTransit, m
     for (const n of nodes) {
       if (n.kind === 'INPUT' || n.kind === 'OUTPUT') continue;
       const inVals = n.inputs.map(p => Boolean(nodeInputs[n.id][p.id]));
-      let outVals;
-      if (['SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(n.kind)) {
-        outVals = evaluateSequentialNode(n, inVals);
-      } else if (n.kind === 'CLOCK') {
-        outVals = [Boolean(state.clockStates.get(n.id))];
-      } else {
-        const def = n.defId ? (defs && defs.find(d => d.id === n.defId)) : undefined;
-        const instanceId = memoryScope ? `${memoryScope}/${n.id}` : n.id;
-        outVals = evalGate(n.kind, inVals, def, defs, instanceId);
-      }
+      const def = n.defId ? (defs && defs.find(d => d.id === n.defId)) : undefined;
+      const instanceId = memoryScope ? `${memoryScope}/${n.id}` : n.id;
+      const outVals = evalGate(n.kind, inVals, def, defs, instanceId);
       n.outputs.forEach((p, i) => {
         const next = Boolean(outVals[i]);
         if (nodeOutputs[n.id][p.id] !== next) {

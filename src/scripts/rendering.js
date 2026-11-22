@@ -167,11 +167,7 @@ function renderHeader() {
     onclick: () => setMobileSidebarOpen(!document.getElementById('app').classList.contains('mobile-sidebar-open')),
   }, document.getElementById('app').classList.contains('mobile-sidebar-open') ? 'Close blocks' : 'Blocks');
   headerRight.appendChild(mobileSidebarToggle);
-  if (state.currentPuzzle) {
-    const indicator = el('div', 'editing-indicator');
-    indicator.textContent = `Puzzle · ${state.currentPuzzle.puzzle.title}`;
-    headerRight.appendChild(indicator);
-  } else if (isEditing) {
+  if (isEditing && !state.currentPuzzle) {
     const indicator = el('div', 'editing-indicator');
     indicator.innerHTML = '<span class="editing-dot"></span> editing ' + escapeHtml(editingBlock ? editingBlock.name : 'block') + ' · drag & rewire, then hit Done';
     headerRight.appendChild(indicator);

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Logic Builder 2.0</title>
+  <title>Logic Builder 2.1</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48dGV4dCB4PSc1MCUnIHk9JzU1JScgZm9udC1mYW1pbHk9J3NhbnMtc2VyaWYnIGZvbnQtd2VpZ2h0PSdib2xkJyBmb250LXNpemU9JzYwJyBmaWxsPScjRkYwMDAwJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJyBkb21pbmFudC1iYXNlbGluZT0nbWlkZGxlJz5MQjwvdGV4dD48L3N2Zz4=">
   <style>
     /* ============================================================ RESET */
@@ -689,9 +689,6 @@
       currentPuzzleId: null,
       puzzleProgress: {},
       sandboxSnapshot: null,
-      sequentialState: new Map(),
-      clockStates: new Map(),
-      clockTransitions: new Map(),
       simulationCache: new Map(),
       graphOutputMemory: new Map(),
       notifyFramePending: false,
@@ -746,61 +743,6 @@
     }
     /* ============================================================ NODE FACTORY */
     function makeGate(kind) {
-      if (kind === 'CLOCK') {
-        return {
-          inputs: [],
-          outputs: [{ id: 'clk', name: 'clk', kind: 'output', value: false }],
-        };
-      }
-      if (kind === 'SR_LATCH') {
-        return {
-          inputs: [
-            { id: 's', name: 'S', kind: 'input', value: false },
-            { id: 'r', name: 'R', kind: 'input', value: false },
-          ],
-          outputs: [
-            { id: 'q', name: 'Q', kind: 'output', value: false },
-            { id: 'qn', name: 'Q̄', kind: 'output', value: true },
-          ],
-        };
-      }
-      if (kind === 'D_LATCH' || kind === 'D_FLIP_FLOP') {
-        return {
-          inputs: [
-            { id: 'd', name: 'D', kind: 'input', value: false },
-            { id: 'clk', name: 'CLK', kind: 'input', value: false },
-          ],
-          outputs: [
-            { id: 'q', name: 'Q', kind: 'output', value: false },
-            { id: 'qn', name: 'Q̄', kind: 'output', value: true },
-          ],
-        };
-      }
-      if (kind === 'T_FLIP_FLOP') {
-        return {
-          inputs: [
-            { id: 't', name: 'T', kind: 'input', value: false },
-            { id: 'clk', name: 'CLK', kind: 'input', value: false },
-          ],
-          outputs: [
-            { id: 'q', name: 'Q', kind: 'output', value: false },
-            { id: 'qn', name: 'Q̄', kind: 'output', value: true },
-          ],
-        };
-      }
-      if (kind === 'JK_FLIP_FLOP') {
-        return {
-          inputs: [
-            { id: 'j', name: 'J', kind: 'input', value: false },
-            { id: 'k', name: 'K', kind: 'input', value: false },
-            { id: 'clk', name: 'CLK', kind: 'input', value: false },
-          ],
-          outputs: [
-            { id: 'q', name: 'Q', kind: 'output', value: false },
-            { id: 'qn', name: 'Q̄', kind: 'output', value: true },
-          ],
-        };
-      }
       if (kind === 'AND' || kind === 'NAND' || kind === 'OR' || kind === 'NOR' || kind === 'XOR' || kind === 'XNOR') {
         return {
           inputs: [
@@ -970,7 +912,6 @@
       const nextVisited = new Set(visited);
       nextVisited.add(def.id);
       return def.nodes.some(node => {
-        if (['CLOCK', 'SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(node.kind)) return true;
         if (node.kind !== 'CUSTOM') return false;
         const nestedDef = allDefs && allDefs.find(candidate => candidate.id === node.defId);
         return blockHasStatefulLogic(nestedDef, allDefs, nextVisited);
@@ -978,7 +919,6 @@
     }
     
     function getStatelessCacheKey(kind, inputs, def, allDefs) {
-      if (kind === 'CLOCK' || ['SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(kind)) return null;
       if (kind === 'CUSTOM' && blockHasStatefulLogic(def, allDefs, new Set())) return null;
       if (kind === 'CUSTOM' && def) {
         const signature = `${def.nodes.length}:${def.connections.length}:${def.nodes.map(n => n.kind).join(',')}`;
@@ -1014,7 +954,6 @@
       else if (kind === 'XOR') result = [Boolean(inputs[0]) !== Boolean(inputs[1])];
       else if (kind === 'XNOR') result = [Boolean(inputs[0]) === Boolean(inputs[1])];
       else if (kind === 'WIRE_REVERSE') result = [Boolean(inputs[0])];
-      else if (kind === 'CLOCK') result = [Boolean(state.clockStates.get(def && def.id))];
       else if (kind === 'INPUT' || kind === 'OUTPUT') result = [];
       else if (kind === 'CUSTOM' && def) {
         const toggles = def.nodes.filter(n => n.kind === 'INPUT');
@@ -1032,57 +971,15 @@
         result = lamps.map(lamp =>
           Boolean(inner.nodeInputs[lamp.id] && inner.nodeInputs[lamp.id]['in'])
         );
-      } else if (['SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(kind)) {
-        result = null;
       } else result = [];
     
       if (result !== null && cacheKey) cacheStatelessResult(cacheKey, result);
       return result || [];
     }
     
-    function evaluateSequentialNode(n, inVals, memoryScope) {
-      const stateKey = memoryScope ? `${memoryScope}/${n.id}` : n.id;
-      const previous = state.sequentialState.get(stateKey) || { q: false, previousClock: false };
-      let q = Boolean(previous.q);
-      let clock = false;
-    
-      if (n.kind === 'SR_LATCH') {
-        const set = Boolean(inVals[0]);
-        const reset = Boolean(inVals[1]);
-        if (set && !reset) q = true;
-        else if (!set && reset) q = false;
-      } else if (n.kind === 'D_LATCH') {
-        clock = Boolean(inVals[1]);
-        if (clock) q = Boolean(inVals[0]);
-      } else {
-        clock = Boolean(inVals[n.kind === 'T_FLIP_FLOP' ? 1 : (n.kind === 'JK_FLIP_FLOP' ? 2 : 1)]);
-        const risingEdge = clock && !Boolean(previous.previousClock);
-        if (risingEdge) {
-          if (n.kind === 'D_FLIP_FLOP') q = Boolean(inVals[0]);
-          else if (n.kind === 'T_FLIP_FLOP') q = Boolean(inVals[0]) ? !q : q;
-          else if (n.kind === 'JK_FLIP_FLOP') {
-            const j = Boolean(inVals[0]);
-            const k = Boolean(inVals[1]);
-            if (j && k) q = !q;
-            else if (j) q = true;
-            else if (k) q = false;
-          }
-        }
-      }
-    
-      state.sequentialState.set(stateKey, { q, previousClock: clock });
-      return [q, !q];
-    }
-    
     function clearNodeSimulationState(nodeId) {
-      state.sequentialState.delete(nodeId);
-      state.clockStates.delete(nodeId);
-      state.clockTransitions.delete(nodeId);
       state.graphOutputMemory.delete(nodeId);
       const customPrefix = `custom:${nodeId}:`;
-      for (const key of state.sequentialState.keys()) {
-        if (key.startsWith(customPrefix) || key.includes(`:${nodeId}:`)) state.sequentialState.delete(key);
-      }
       for (const key of state.graphOutputMemory.keys()) {
         if (key.startsWith(customPrefix) || key.includes(`:${nodeId}:`)) state.graphOutputMemory.delete(key);
       }
@@ -1154,16 +1051,9 @@
           if (!node) continue;
     
           const inVals = node.inputs.map(pin => Boolean(nodeInputs[node.id][pin.id]));
-          let outVals;
-          if (['SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(node.kind)) {
-            outVals = evaluateSequentialNode(node, inVals, memoryScope);
-          } else if (node.kind === 'CLOCK') {
-            outVals = [Boolean(state.clockStates.get(node.id))];
-          } else {
-            const def = node.defId ? (defs && defs.find(item => item.id === node.defId)) : undefined;
-            const instanceId = memoryScope ? `${memoryScope}/${node.id}` : node.id;
-            outVals = evalGate(node.kind, inVals, def, defs, instanceId);
-          }
+          const def = node.defId ? (defs && defs.find(item => item.id === node.defId)) : undefined;
+          const instanceId = memoryScope ? `${memoryScope}/${node.id}` : node.id;
+          const outVals = evalGate(node.kind, inVals, def, defs, instanceId);
     
           node.outputs.forEach((pin, index) => {
             const next = Boolean(outVals[index]);
@@ -1205,16 +1095,9 @@
         for (const n of nodes) {
           if (n.kind === 'INPUT' || n.kind === 'OUTPUT') continue;
           const inVals = n.inputs.map(p => Boolean(nodeInputs[n.id][p.id]));
-          let outVals;
-          if (['SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(n.kind)) {
-            outVals = evaluateSequentialNode(n, inVals);
-          } else if (n.kind === 'CLOCK') {
-            outVals = [Boolean(state.clockStates.get(n.id))];
-          } else {
-            const def = n.defId ? (defs && defs.find(d => d.id === n.defId)) : undefined;
-            const instanceId = memoryScope ? `${memoryScope}/${n.id}` : n.id;
-            outVals = evalGate(n.kind, inVals, def, defs, instanceId);
-          }
+          const def = n.defId ? (defs && defs.find(d => d.id === n.defId)) : undefined;
+          const instanceId = memoryScope ? `${memoryScope}/${n.id}` : n.id;
+          const outVals = evalGate(n.kind, inVals, def, defs, instanceId);
           n.outputs.forEach((p, i) => {
             const next = Boolean(outVals[i]);
             if (nodeOutputs[n.id][p.id] !== next) {
@@ -1658,9 +1541,6 @@
       state.settingsSecretReady = false;
       state.settingsSecretClickCount = 0;
       state.secretWireUnlocked = false;
-      state.sequentialState.clear();
-      state.clockStates.clear();
-      state.clockTransitions.clear();
       state.simulationCache.clear();
       state.graphOutputMemory.clear();
       notify();
@@ -1765,6 +1645,14 @@
             <button class="btn btn-sm" id="removePuzzlePacksBtn">Remove expansion packs</button>
           </div>
         </section>
+        <section class="puzzle-settings-category">
+          <h3>Progress</h3>
+          <p>Export solved statuses and saved puzzle canvases, or merge them from a JSON backup. Imported entries replace matching puzzle IDs; other local entries are kept.</p>
+          <div class="puzzle-settings-actions">
+            <button class="btn btn-sm" id="exportPuzzleProgressBtn">Export progress</button>
+            <button class="btn btn-sm" id="importPuzzleProgressBtn">Import progress</button>
+          </div>
+        </section>
         <section class="puzzle-settings-category dangerous">
           <h3>Dangerous</h3>
           <p>Clear every puzzle's solved status and saved canvas. This cannot be undone.</p>
@@ -1779,6 +1667,11 @@
       body.querySelector('#removePuzzlePacksBtn').onclick = () => {
         dlg.close();
         showRemovePuzzlePacksDialog();
+      };
+      body.querySelector('#exportPuzzleProgressBtn').onclick = exportPuzzleProgressToJson;
+      body.querySelector('#importPuzzleProgressBtn').onclick = () => {
+        dlg.close();
+        choosePuzzleProgressImportFile();
       };
       body.querySelector('#resetPuzzleProgressBtn').onclick = () => {
         dlg.close();
@@ -2250,11 +2143,7 @@
         onclick: () => setMobileSidebarOpen(!document.getElementById('app').classList.contains('mobile-sidebar-open')),
       }, document.getElementById('app').classList.contains('mobile-sidebar-open') ? 'Close blocks' : 'Blocks');
       headerRight.appendChild(mobileSidebarToggle);
-      if (state.currentPuzzle) {
-        const indicator = el('div', 'editing-indicator');
-        indicator.textContent = `Puzzle · ${state.currentPuzzle.puzzle.title}`;
-        headerRight.appendChild(indicator);
-      } else if (isEditing) {
+      if (isEditing && !state.currentPuzzle) {
         const indicator = el('div', 'editing-indicator');
         indicator.innerHTML = '<span class="editing-dot"></span> editing ' + escapeHtml(editingBlock ? editingBlock.name : 'block') + ' · drag & rewire, then hit Done';
         headerRight.appendChild(indicator);
@@ -3010,7 +2899,7 @@
       const headerH = isTerminal ? TERMINAL_HEADER_HEIGHT : HEADER_HEIGHT;
     
       let headerLabel = '';
-      if (['AND', 'NOT', 'NAND', 'NOR', 'OR', 'XOR', 'XNOR', 'CLOCK', 'SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(node.kind)) headerLabel = node.kind.replace(/_/g, ' ');
+      if (['AND', 'NOT', 'NAND', 'NOR', 'OR', 'XOR', 'XNOR'].includes(node.kind)) headerLabel = node.kind;
       else if (node.kind === 'INPUT') headerLabel = 'Toggle';
       else if (node.kind === 'OUTPUT') headerLabel = 'Lamp';
       else if (node.kind === 'CUSTOM') {
@@ -3386,48 +3275,6 @@
     }
     /* ============================================================ WIRE DELAY RAF LOOP */
     let rafId = null;
-    let clockRafId = null;
-    let clockLastFrameTime = 0;
-    
-    function advanceClockNodes(now) {
-      let changed = false;
-      const liveClockIds = new Set(state.nodes.filter(node => node.kind === 'CLOCK').map(node => node.id));
-      for (const id of state.clockStates.keys()) {
-        if (!liveClockIds.has(id)) state.clockStates.delete(id);
-      }
-      for (const id of state.clockTransitions.keys()) {
-        if (!liveClockIds.has(id)) state.clockTransitions.delete(id);
-      }
-      for (const node of state.nodes) {
-        if (node.kind !== 'CLOCK') continue;
-        const period = Math.max(20, Number(node.periodMs) || 500);
-        let transition = state.clockTransitions.get(node.id);
-        if (!transition) {
-          transition = { lastToggle: now, phase: false };
-          state.clockTransitions.set(node.id, transition);
-          state.clockStates.set(node.id, false);
-        }
-        if (now - transition.lastToggle >= period) {
-          const elapsedPeriods = Math.floor((now - transition.lastToggle) / period);
-          transition.lastToggle += elapsedPeriods * period;
-          if (elapsedPeriods % 2 === 1) transition.phase = !transition.phase;
-          state.clockStates.set(node.id, transition.phase);
-          changed = true;
-        }
-      }
-      if (changed) renderSimulationFrame();
-    }
-    
-    function startClockLoop() {
-      if (clockRafId !== null) cancelAnimationFrame(clockRafId);
-      const loop = (now) => {
-        if (!clockLastFrameTime) clockLastFrameTime = now;
-        advanceClockNodes(now);
-        clockLastFrameTime = now;
-        clockRafId = requestAnimationFrame(loop);
-      };
-      clockRafId = requestAnimationFrame(loop);
-    }
     
     function startWireDelayLoop() {
       if (rafId !== null) cancelAnimationFrame(rafId);
@@ -4144,6 +3991,140 @@
         showToast('Progress save failed', 'Puzzle progress could not be saved to local storage.', 'toast-error');
         return false;
       }
+    }
+    
+    function exportPuzzleProgressToJson() {
+      let url;
+      try {
+        const canvases = Object.create(null);
+        for (let index = 0; index < localStorage.length; index++) {
+          const key = localStorage.key(index);
+          if (!key || !key.startsWith(PUZZLE_SAVE_PREFIX)) continue;
+          const puzzleId = decodeURIComponent(key.slice(PUZZLE_SAVE_PREFIX.length));
+          const save = JSON.parse(localStorage.getItem(key));
+          if (!isPuzzleCanvasSave(save)) throw new Error('Invalid saved puzzle canvas');
+          canvases[puzzleId] = save;
+        }
+    
+        const data = {
+          format: 'logic-builder-puzzle-progress',
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          progress: state.puzzleProgress,
+          canvases,
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `logic-builder-puzzle-progress-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        showToast('Puzzle progress exported', 'Solved statuses and saved puzzle canvases were downloaded.');
+      } catch (error) {
+        showToast('Puzzle export failed', 'Puzzle progress or saved canvases could not be exported.', 'toast-error');
+      } finally {
+        if (url) URL.revokeObjectURL(url);
+      }
+    }
+    
+    function isPuzzleCanvasSave(save) {
+      return save && typeof save === 'object' && !Array.isArray(save)
+        && Array.isArray(save.nodes) && Array.isArray(save.connections);
+    }
+    
+    function isPuzzleProgressBackup(data) {
+      if (!data || typeof data !== 'object' || Array.isArray(data)
+        || data.format !== 'logic-builder-puzzle-progress'
+        || data.version !== 1
+        || !data.progress || typeof data.progress !== 'object' || Array.isArray(data.progress)
+        || !data.canvases || typeof data.canvases !== 'object' || Array.isArray(data.canvases)) {
+        return false;
+      }
+      return Object.entries(data.progress).every(([id, solved]) => id.length > 0 && typeof solved === 'boolean')
+        && Object.entries(data.canvases).every(([id, save]) => id.length > 0 && isPuzzleCanvasSave(save));
+    }
+    
+    function importPuzzleProgressFromJson(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        let data;
+        try {
+          data = JSON.parse(String(reader.result));
+        } catch (error) {
+          showToast('Puzzle import failed', 'Choose a valid puzzle progress JSON file.', 'toast-error');
+          return;
+        }
+        if (!isPuzzleProgressBackup(data)) {
+          showToast('Puzzle import failed', 'The file does not contain valid puzzle progress and canvas data.', 'toast-error');
+          return;
+        }
+        applyPuzzleProgressImport(data);
+      };
+      reader.onerror = () => {
+        showToast('Puzzle import failed', 'The selected file could not be read.', 'toast-error');
+      };
+      reader.readAsText(file);
+    }
+    
+    function applyPuzzleProgressImport(data) {
+      const mergedProgress = Object.assign(Object.create(null), state.puzzleProgress);
+      for (const [id, solved] of Object.entries(data.progress)) {
+        if (solved) mergedProgress[id] = true;
+        else delete mergedProgress[id];
+      }
+    
+      const updates = new Map();
+      for (const [id, save] of Object.entries(data.canvases)) {
+        updates.set(puzzleSaveKey(id), JSON.stringify(save));
+      }
+      updates.set(PUZZLE_PROGRESS_STORAGE_KEY, JSON.stringify(mergedProgress));
+    
+      const previousValues = new Map();
+      try {
+        for (const key of updates.keys()) previousValues.set(key, localStorage.getItem(key));
+        for (const [key, value] of updates) localStorage.setItem(key, value);
+      } catch (error) {
+        let rollbackFailed = false;
+        for (const [key, value] of previousValues) {
+          try {
+            if (value === null) localStorage.removeItem(key);
+            else localStorage.setItem(key, value);
+          } catch (rollbackError) {
+            rollbackFailed = true;
+          }
+        }
+        showToast(
+          rollbackFailed ? 'Puzzle import incomplete' : 'Puzzle import failed',
+          rollbackFailed
+            ? 'Storage failed during import and some changes could not be rolled back.'
+            : 'Puzzle data could not be saved; existing progress and canvases were retained.',
+          'toast-error'
+        );
+        return;
+      }
+    
+      state.puzzleProgress = mergedProgress;
+      notify();
+      showToast(
+        'Puzzle progress imported',
+        `${Object.values(data.progress).filter(Boolean).length} solved status(es) and ${Object.keys(data.canvases).length} canvas(es) merged.`
+      );
+    }
+    
+    function choosePuzzleProgressImportFile() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json,.json';
+      input.style.display = 'none';
+      input.addEventListener('change', () => {
+        importPuzzleProgressFromJson(input.files && input.files[0]);
+      });
+      document.body.appendChild(input);
+      input.click();
+      input.remove();
     }
     
     function verifyCurrentPuzzle() {

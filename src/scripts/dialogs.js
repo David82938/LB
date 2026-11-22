@@ -78,6 +78,14 @@ function showPuzzleSettingsDialog() {
         <button class="btn btn-sm" id="removePuzzlePacksBtn">Remove expansion packs</button>
       </div>
     </section>
+    <section class="puzzle-settings-category">
+      <h3>Progress</h3>
+      <p>Export solved statuses and saved puzzle canvases, or merge them from a JSON backup. Imported entries replace matching puzzle IDs; other local entries are kept.</p>
+      <div class="puzzle-settings-actions">
+        <button class="btn btn-sm" id="exportPuzzleProgressBtn">Export progress</button>
+        <button class="btn btn-sm" id="importPuzzleProgressBtn">Import progress</button>
+      </div>
+    </section>
     <section class="puzzle-settings-category dangerous">
       <h3>Dangerous</h3>
       <p>Clear every puzzle's solved status and saved canvas. This cannot be undone.</p>
@@ -92,6 +100,11 @@ function showPuzzleSettingsDialog() {
   body.querySelector('#removePuzzlePacksBtn').onclick = () => {
     dlg.close();
     showRemovePuzzlePacksDialog();
+  };
+  body.querySelector('#exportPuzzleProgressBtn').onclick = exportPuzzleProgressToJson;
+  body.querySelector('#importPuzzleProgressBtn').onclick = () => {
+    dlg.close();
+    choosePuzzleProgressImportFile();
   };
   body.querySelector('#resetPuzzleProgressBtn').onclick = () => {
     dlg.close();

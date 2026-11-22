@@ -382,9 +382,6 @@ function resetGame() {
   state.settingsSecretReady = false;
   state.settingsSecretClickCount = 0;
   state.secretWireUnlocked = false;
-  state.sequentialState.clear();
-  state.clockStates.clear();
-  state.clockTransitions.clear();
   state.simulationCache.clear();
   state.graphOutputMemory.clear();
   notify();

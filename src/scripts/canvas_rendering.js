@@ -390,7 +390,7 @@ function renderNode(node, evalResult) {
   const headerH = isTerminal ? TERMINAL_HEADER_HEIGHT : HEADER_HEIGHT;
 
   let headerLabel = '';
-  if (['AND', 'NOT', 'NAND', 'NOR', 'OR', 'XOR', 'XNOR', 'CLOCK', 'SR_LATCH', 'D_LATCH', 'D_FLIP_FLOP', 'T_FLIP_FLOP', 'JK_FLIP_FLOP'].includes(node.kind)) headerLabel = node.kind.replace(/_/g, ' ');
+  if (['AND', 'NOT', 'NAND', 'NOR', 'OR', 'XOR', 'XNOR'].includes(node.kind)) headerLabel = node.kind;
   else if (node.kind === 'INPUT') headerLabel = 'Toggle';
   else if (node.kind === 'OUTPUT') headerLabel = 'Lamp';
   else if (node.kind === 'CUSTOM') {

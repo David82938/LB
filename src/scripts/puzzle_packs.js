@@ -222,6 +222,140 @@ function persistPuzzleProgress() {
   }
 }
 
+function exportPuzzleProgressToJson() {
+  let url;
+  try {
+    const canvases = Object.create(null);
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index);
+      if (!key || !key.startsWith(PUZZLE_SAVE_PREFIX)) continue;
+      const puzzleId = decodeURIComponent(key.slice(PUZZLE_SAVE_PREFIX.length));
+      const save = JSON.parse(localStorage.getItem(key));
+      if (!isPuzzleCanvasSave(save)) throw new Error('Invalid saved puzzle canvas');
+      canvases[puzzleId] = save;
+    }
+
+    const data = {
+      format: 'logic-builder-puzzle-progress',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      progress: state.puzzleProgress,
+      canvases,
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `logic-builder-puzzle-progress-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    showToast('Puzzle progress exported', 'Solved statuses and saved puzzle canvases were downloaded.');
+  } catch (error) {
+    showToast('Puzzle export failed', 'Puzzle progress or saved canvases could not be exported.', 'toast-error');
+  } finally {
+    if (url) URL.revokeObjectURL(url);
+  }
+}
+
+function isPuzzleCanvasSave(save) {
+  return save && typeof save === 'object' && !Array.isArray(save)
+    && Array.isArray(save.nodes) && Array.isArray(save.connections);
+}
+
+function isPuzzleProgressBackup(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)
+    || data.format !== 'logic-builder-puzzle-progress'
+    || data.version !== 1
+    || !data.progress || typeof data.progress !== 'object' || Array.isArray(data.progress)
+    || !data.canvases || typeof data.canvases !== 'object' || Array.isArray(data.canvases)) {
+    return false;
+  }
+  return Object.entries(data.progress).every(([id, solved]) => id.length > 0 && typeof solved === 'boolean')
+    && Object.entries(data.canvases).every(([id, save]) => id.length > 0 && isPuzzleCanvasSave(save));
+}
+
+function importPuzzleProgressFromJson(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let data;
+    try {
+      data = JSON.parse(String(reader.result));
+    } catch (error) {
+      showToast('Puzzle import failed', 'Choose a valid puzzle progress JSON file.', 'toast-error');
+      return;
+    }
+    if (!isPuzzleProgressBackup(data)) {
+      showToast('Puzzle import failed', 'The file does not contain valid puzzle progress and canvas data.', 'toast-error');
+      return;
+    }
+    applyPuzzleProgressImport(data);
+  };
+  reader.onerror = () => {
+    showToast('Puzzle import failed', 'The selected file could not be read.', 'toast-error');
+  };
+  reader.readAsText(file);
+}
+
+function applyPuzzleProgressImport(data) {
+  const mergedProgress = Object.assign(Object.create(null), state.puzzleProgress);
+  for (const [id, solved] of Object.entries(data.progress)) {
+    if (solved) mergedProgress[id] = true;
+    else delete mergedProgress[id];
+  }
+
+  const updates = new Map();
+  for (const [id, save] of Object.entries(data.canvases)) {
+    updates.set(puzzleSaveKey(id), JSON.stringify(save));
+  }
+  updates.set(PUZZLE_PROGRESS_STORAGE_KEY, JSON.stringify(mergedProgress));
+
+  const previousValues = new Map();
+  try {
+    for (const key of updates.keys()) previousValues.set(key, localStorage.getItem(key));
+    for (const [key, value] of updates) localStorage.setItem(key, value);
+  } catch (error) {
+    let rollbackFailed = false;
+    for (const [key, value] of previousValues) {
+      try {
+        if (value === null) localStorage.removeItem(key);
+        else localStorage.setItem(key, value);
+      } catch (rollbackError) {
+        rollbackFailed = true;
+      }
+    }
+    showToast(
+      rollbackFailed ? 'Puzzle import incomplete' : 'Puzzle import failed',
+      rollbackFailed
+        ? 'Storage failed during import and some changes could not be rolled back.'
+        : 'Puzzle data could not be saved; existing progress and canvases were retained.',
+      'toast-error'
+    );
+    return;
+  }
+
+  state.puzzleProgress = mergedProgress;
+  notify();
+  showToast(
+    'Puzzle progress imported',
+    `${Object.values(data.progress).filter(Boolean).length} solved status(es) and ${Object.keys(data.canvases).length} canvas(es) merged.`
+  );
+}
+
+function choosePuzzleProgressImportFile() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json,.json';
+  input.style.display = 'none';
+  input.addEventListener('change', () => {
+    importPuzzleProgressFromJson(input.files && input.files[0]);
+  });
+  document.body.appendChild(input);
+  input.click();
+  input.remove();
+}
+
 function verifyCurrentPuzzle() {
   const entry = state.currentPuzzle;
   if (!entry) return;
