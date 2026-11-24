@@ -118,6 +118,41 @@ function showPuzzleSettingsDialog() {
   };
 }
 
+function showProjectListSettingsDialog() {
+  const body = document.createElement('div');
+  body.innerHTML = `
+    <section class="puzzle-settings-category">
+      <h3>Projects</h3>
+      <p>Export every project, including its canvas and custom blocks, to a single save file.</p>
+      <div class="puzzle-settings-actions">
+        <button class="btn btn-sm" id="exportAllProjectsBtn">Export all projects</button>
+        <button class="btn btn-sm" id="importProjectsBtn">Import projects</button>
+      </div>
+    </section>
+    <section class="puzzle-settings-category dangerous">
+      <h3>Dangerous</h3>
+      <p>Delete every saved project. This cannot be undone.</p>
+      <button class="btn btn-sm btn-destructive" id="deleteAllProjectsBtn">Delete all projects</button>
+    </section>
+  `;
+  const dlg = showDialog({ title: 'Project settings', body, maxWidth: 'medium' });
+  body.querySelector('#exportAllProjectsBtn').onclick = exportAllProjects;
+  body.querySelector('#importProjectsBtn').onclick = () => {
+    dlg.close();
+    chooseProjectImportFile();
+  };
+  body.querySelector('#deleteAllProjectsBtn').onclick = () => {
+    dlg.close();
+    showConfirmDialog({
+      title: 'Delete all projects?',
+      message: 'This permanently deletes every saved project and its canvas. This cannot be undone.',
+      confirmLabel: 'Delete all',
+      destructive: true,
+      onConfirm: deleteAllProjects,
+    });
+  };
+}
+
 function showBuildDialog({ defaultName, defaultDescription, inputCount, outputCount, onBuild, onCancel }) {
   const body = document.createElement('div');
   body.innerHTML = `
@@ -315,6 +350,7 @@ function showSettings() {
   const body = document.createElement('div');
   const wireDelay = state.wireDelay;
   const puzzle = state.currentPuzzle && state.currentPuzzle.puzzle;
+  const project = state.currentProjectId ? getCurrentProject() : null;
   const projectSettings = puzzle
     ? `
       <div class="settings-section">
@@ -323,7 +359,28 @@ function showSettings() {
         ${renderSettingsTruthTable(puzzle)}
       </div>
     `
-    : `
+    : project
+      ? `
+      <div class="settings-section">
+        <div class="settings-label"><span>Project</span></div>
+        <div class="project-metadata-fields">
+          <div class="form-group">
+            <label class="form-label" for="projectEditorName">Name</label>
+            <input class="form-input" id="projectEditorName" maxlength="80" value="${escapeHtml(project.name)}">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="projectEditorDescription">Description</label>
+            <input class="form-input" id="projectEditorDescription" maxlength="500" value="${escapeHtml(project.description)}">
+          </div>
+          <p class="form-hint">Press Enter in either field to save.</p>
+        </div>
+        <div class="dialog-actions" style="justify-content:flex-start">
+          <button class="btn btn-sm" id="exportProjectBtn">Export project</button>
+          <button class="btn btn-sm btn-destructive" id="deleteProjectBtn">Delete project</button>
+        </div>
+      </div>
+    `
+      : `
       <div class="settings-section">
         <div class="settings-label"><span>Project file</span></div>
         <p class="settings-description">Export the current canvas and custom blocks to JSON, or import them from a saved project file.</p>
@@ -341,7 +398,7 @@ function showSettings() {
         <button class="btn btn-sm" id="resetBtn">${ICONS.check} Back to puzzles</button>
       </div>
     `
-    : `
+    : project ? '' : `
       <div class="settings-section">
         <div class="settings-label"><span>Reset game</span></div>
         <p class="settings-description">Clears the canvas, removes all custom blocks, and resets settings to defaults. Cannot be undone.</p>
@@ -357,8 +414,7 @@ function showSettings() {
     </div>
     <div class="settings-divider"></div>
     ${projectSettings}
-    <div class="settings-divider"></div>
-    ${resetSettings}
+    ${resetSettings ? `<div class="settings-divider"></div>${resetSettings}` : ''}
   `;
   const dlg = showDialog({ title: 'Settings', body });
   startSettingsSecretTimer();
@@ -369,7 +425,7 @@ function showSettings() {
     setWireDelay(v);
     delayValue.textContent = `${v}ms`;
   });
-  if (!puzzle) {
+  if (!puzzle && !project) {
     body.querySelector('#exportBtn').onclick = exportStateToJson;
     body.querySelector('#importBtn').onclick = chooseImportJsonFile;
     body.querySelector('#resetBtn').onclick = () => {
@@ -386,11 +442,35 @@ function showSettings() {
         },
       });
     };
-  } else {
+  } else if (puzzle) {
     body.querySelector('#showPuzzleTruthTableBtn').onclick = showPuzzleTruthTableWindow;
     body.querySelector('#resetBtn').onclick = () => {
       dlg.close();
       leavePuzzle();
+    };
+  } else {
+    const projectName = body.querySelector('#projectEditorName');
+    const projectDescription = body.querySelector('#projectEditorDescription');
+    const saveDetails = () => saveCurrentProjectDetails(projectName, projectDescription);
+    [projectName, projectDescription].forEach(input => {
+      input.addEventListener('keydown', event => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        saveDetails();
+      });
+    });
+    body.querySelector('#exportProjectBtn').onclick = exportCurrentProject;
+    body.querySelector('#deleteProjectBtn').onclick = () => {
+      const currentProject = getCurrentProject();
+      dlg.close();
+      if (!currentProject) return;
+      showConfirmDialog({
+        title: `Delete "${currentProject.name}"?`,
+        message: 'This permanently deletes this project and its canvas. This cannot be undone.',
+        confirmLabel: 'Delete project',
+        destructive: true,
+        onConfirm: deleteCurrentProject,
+      });
     };
   }
   const originalClose = dlg.close;

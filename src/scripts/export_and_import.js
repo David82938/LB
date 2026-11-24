@@ -9,7 +9,6 @@ function getExportData() {
     customBlocks: state.customBlocks,
     wireDelay: state.wireDelay,
     zoom: state.zoom,
-    secretWireUnlocked: state.secretWireUnlocked,
   };
 }
 
@@ -67,10 +66,6 @@ function importStateFromJson(file) {
       if (Number.isFinite(data.zoom)) {
         state.zoom = Math.max(0.25, Math.min(2.5, data.zoom));
       }
-      if (typeof data.secretWireUnlocked === 'boolean') {
-        state.secretWireUnlocked = data.secretWireUnlocked;
-      }
-
       notify();
       showToast('Project imported', `${data.nodes.length} blocks and ${data.connections.length} wires loaded.`);
     } catch (error) {

@@ -42,8 +42,26 @@ function outputPinPos(node, pinIndex) {
 }
 function wirePath(from, to, fromNodeId, toNodeId) {
   const dx = Math.abs(to.x - from.x);
-  const offset = Math.max(40, dx * 0.4);
-  const c1x = from.x + offset;
-  const c2x = to.x - offset;
+  const offset = Math.max(40, dx * 0.35);
+  const fromNode = fromNodeId ? state.nodes.find(node => node.id === fromNodeId) : null;
+  const toNode = toNodeId ? state.nodes.find(node => node.id === toNodeId) : null;
+
+  let c1x;
+  if (fromNode && fromNode.kind === 'WIRE_REVERSE') {
+    c1x = from.x - offset;
+  } else if (fromNode) {
+    c1x = from.x + offset;
+  } else {
+    c1x = to.x >= from.x ? from.x + offset : from.x - offset;
+  }
+
+  let c2x;
+  if (toNode && toNode.kind === 'WIRE_REVERSE') {
+    c2x = to.x + offset;
+  } else if (toNode) {
+    c2x = to.x - offset;
+  } else {
+    c2x = to.x >= from.x ? to.x - offset : to.x + offset;
+  }
   return `M ${from.x},${from.y} C ${c1x},${from.y} ${c2x},${to.y} ${to.x},${to.y}`;
 }

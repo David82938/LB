@@ -98,6 +98,9 @@ svg { display: block; }
 }
 .sidebar-header h2 { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--foreground); }
 .sidebar-header svg { color: var(--primary); }
+.sidebar-search { padding: 8px 8px 8px; border-bottom: 1px solid var(--border); }
+.sidebar-search-input { width: 100%; height: 32px; border: 1px solid var(--border); border-radius: 6px; background: oklch(1 0 0 / 6%); color: var(--foreground); padding: 0 10px; outline: none; font-size: 12px; }
+.sidebar-search-input:focus { border-color: var(--primary); }
 .sidebar-list { flex: 1; overflow-y: auto; padding: 8px; }
 .sidebar-list > * + * { margin-top: 4px; }
 .sidebar-footer {
@@ -224,6 +227,8 @@ svg { display: block; }
   position: absolute; user-select: none;
 }
 .node.dragging-over-sidebar { opacity: 0.6; box-shadow: 0 0 0 2px var(--destructive); }
+.node.selected .node-body { border-color: var(--primary); box-shadow: 0 0 0 2px oklch(0.577 0.245 27.325 / 55%), 0 4px 12px rgba(0,0,0,0.4); }
+.editor-selection-box { position: absolute; z-index: 30; pointer-events: none; border: 1px solid var(--primary); background: oklch(0.577 0.245 27.325 / 12%); box-sizing: border-box; }
 .node-body {
   position: relative; border-radius: 8px; border: 1px solid var(--lb-node-border);
   background: var(--lb-node-bg); box-shadow: 0 4px 12px rgba(0,0,0,0.4);
@@ -332,6 +337,13 @@ svg { display: block; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ============================================================ DIALOG */
+.editor-context-menu { position: fixed; z-index: 80; min-width: 180px; max-width: 220px; max-height: 280px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 4px; background: var(--popover); box-shadow: 0 12px 32px rgba(0,0,0,.45); }
+.editor-context-menu button { display: flex; align-items: center; gap: 9px; width: 100%; height: 30px; padding: 0 10px; border-radius: 5px; text-align: left; color: var(--foreground); font-size: 12px; }
+.editor-context-menu button:hover { background: oklch(1 0 0 / 7%); }
+.editor-context-menu button.editor-context-destructive { color: var(--destructive); }
+.editor-context-menu-icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; flex: 0 0 16px; color: var(--muted-foreground); }
+.editor-context-menu-icon svg { width: 14px; height: 14px; }
+.editor-context-menu-divider { height: 1px; margin: 4px 6px; background: var(--border); }
 .dialog-overlay {
   position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
   background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
@@ -391,7 +403,11 @@ svg { display: block; }
 }
 .form-input.mono { font-family: monospace; }
 .form-input:focus { border-color: var(--primary); }
+select.form-input { color-scheme: dark; }
+select.form-input option { background: var(--popover); color: var(--foreground); }
 .form-hint { font-size: 10px; color: oklch(0.708 0 0 / 70%); margin-top: 4px; }
+.project-metadata-fields .form-group { margin-bottom: 12px; }
+.project-metadata-fields .form-hint { margin: -4px 0 16px; }
 
 /* Settings */
 .settings-section { margin-bottom: 20px; }
@@ -447,6 +463,18 @@ input[type="range"] { width: 100%; accent-color: var(--primary); }
 .mode-back { width: auto; }
 .puzzle-heading-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .puzzle-grid { width: 100%; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+.project-list { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+.project-card { width: 100%; min-height: 64px; padding: 10px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); display: grid; grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr) auto; align-items: center; gap: 16px; text-align: left; transition: border-color .18s, background .18s; }
+.project-card:hover { border-color: oklch(0.577 0.245 27.325 / 55%); background: oklch(0.577 0.245 27.325 / 7%); }
+.project-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+.project-card span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted-foreground); }
+.project-card small { color: var(--muted-foreground); white-space: nowrap; }
+.project-empty { width: 100%; padding: 34px 18px; border: 1px dashed var(--border); border-radius: 12px; color: var(--muted-foreground); text-align: center; }
+.project-gate-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; margin: -4px 0 18px; }
+.project-gate-options label { display: flex; align-items: center; gap: 8px; color: var(--muted-foreground); font-size: 12px; }
+.project-gate-options input { accent-color: var(--primary); }
+.project-description-input { min-height: 72px; resize: vertical; }
+.project-status-label { color: var(--muted-foreground); }
 .puzzle-card { position: relative; width: 100%; min-width: 0; height: 190px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 12px; background: var(--card); display: flex; align-items: center; justify-content: center; padding: 38px 18px 18px; transition: transform .18s, border-color .18s, background .18s; }
 .puzzle-card:hover { transform: translateY(-4px); border-color: oklch(0.577 0.245 27.325 / 55%); background: oklch(0.577 0.245 27.325 / 7%); }
 .puzzle-card.puzzle-solved { border-color: var(--primary); box-shadow: 0 0 18px oklch(0.577 0.245 27.325 / 35%), inset 0 0 18px oklch(0.577 0.245 27.325 / 8%); }
@@ -471,6 +499,10 @@ input[type="range"] { width: 100%; accent-color: var(--primary); }
   .mode-heading { align-items: flex-start; flex-direction: column; gap: 16px; }
   .puzzle-heading-actions { justify-content: flex-start; }
   .puzzle-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .project-card { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; }
+  .project-card strong { grid-column: 1; }
+  .project-card span { grid-column: 1; grid-row: 2; }
+  .project-card small { grid-column: 2; grid-row: 1 / span 2; }
 }
 @media (max-width: 520px) {
   .puzzle-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -525,7 +557,8 @@ input[type="range"] { width: 100%; accent-color: var(--primary); }
   #bottomBar { height: auto; min-height: 48px; gap: 6px; padding: 5px 7px; }
   .bottom-stats { min-width: 0; flex: 1; gap: 6px; overflow: hidden; font-size: 10px; }
   .bottom-stats .stat { min-width: 0; white-space: nowrap; }
-  .bottom-stats .puzzle-status-label { overflow: hidden; text-overflow: ellipsis; }
+  .bottom-stats .puzzle-status-label,
+  .bottom-stats .project-status-label { overflow: hidden; text-overflow: ellipsis; }
   .bottom-actions { flex-shrink: 0; gap: 4px; }
   .bottom-actions .btn { height: 32px; padding: 0 8px; font-size: 11px; }
 }
@@ -533,7 +566,7 @@ input[type="range"] { width: 100%; accent-color: var(--primary); }
 @media (max-width: 420px) {
   .header-right .editing-indicator { max-width: 92px; font-size: 9px; }
   #bottomBar { align-items: center; }
-  .bottom-stats > .stat:not(.puzzle-status-label),
+  .bottom-stats > .stat:not(.puzzle-status-label):not(.project-status-label),
   .bottom-stats > .divider { display: none; }
   .bottom-actions .btn { gap: 4px; padding: 0 6px; }
 }

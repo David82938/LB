@@ -29,6 +29,14 @@ const state = {
   currentPuzzleId: null,
   puzzleProgress: {},
   sandboxSnapshot: null,
+  projects: [],
+  currentProjectId: null,
+  sidebarSearch: '',
+  selectedNodeIds: new Set(),
+  editorSelectionRect: null,
+  editorClipboard: null,
+  editorCursorWorld: { x: 0, y: 0 },
+  hasShownCopyToast: false,
   simulationCache: new Map(),
   graphOutputMemory: new Map(),
   notifyFramePending: false,
@@ -78,6 +86,5 @@ function showPuzzleMenu() {
 
 function showSandbox() {
   if (state.currentPuzzle) leavePuzzle(false);
-  state.view = 'sandbox';
-  notify();
+  showProjectsMenu();
 }

@@ -19,4 +19,8 @@ const ICONS = {
   checkSm: `{{icons/checkSm.svg}}`,
   xSm: `{{icons/xSm.svg}}`,
   trashSm: `{{icons/trashSm.svg}}`,
+  copy: `{{icons/copy.svg}}`,
+  clipboard: `{{icons/clipboard.svg}}`,
+  toggle: `{{icons/toggle.svg}}`,
+  lamp: `{{icons/lamp.svg}}`,
 };

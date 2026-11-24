@@ -19,7 +19,7 @@ function el(tag, className, attrs, children) {
 function renderMenu() {
   const app = document.getElementById('app');
   const menuRoot = document.getElementById('menuRoot');
-  const editorVisible = state.view === 'sandbox' || state.view === 'puzzle';
+  const editorVisible = state.view === 'sandbox' || state.view === 'puzzle' || state.view === 'project';
   app.classList.toggle('hidden', !editorVisible);
   menuRoot.classList.toggle('hidden', editorVisible);
   if (editorVisible) {
@@ -91,7 +91,7 @@ function renderMenu() {
       <div class="mode-screen">
         <div class="mode-heading">
           <div>
-            <div class="mode-eyebrow">Logic Builder</div>
+            <div class="mode-eyebrow">Challenge Mode</div>
             <h2>Puzzles</h2>
           </div>
           <div class="puzzle-heading-actions">
@@ -110,6 +110,41 @@ function renderMenu() {
     return;
   }
 
+  if (state.view === 'projects') {
+    const projectCards = state.projects.length
+      ? state.projects.map(project => `
+        <button class="project-card" type="button" data-project-id="${escapeHtml(project.id)}">
+          <strong>${escapeHtml(project.name)}</strong>
+          <span>${escapeHtml(project.description || 'No description')}</span>
+          <small>Last modified ${escapeHtml(formatProjectLastModified(project.lastModified))}</small>
+        </button>
+      `).join('')
+      : '<div class="project-empty">No projects yet. Create one to start building.</div>';
+    menuRoot.innerHTML = `
+      <div class="mode-screen">
+        <div class="mode-heading">
+          <div>
+            <div class="mode-eyebrow">Sandbox mode</div>
+            <h2>Projects</h2>
+          </div>
+          <div class="puzzle-heading-actions">
+            <button class="btn btn-primary" id="newProjectBtn" type="button">New project</button>
+            <button class="btn" id="projectSettingsBtn" type="button">Settings</button>
+            <button class="btn mode-back" id="projectBackBtn" type="button">Back to main Menu</button>
+          </div>
+        </div>
+        <div class="project-list">${projectCards}</div>
+      </div>
+    `;
+    document.getElementById('newProjectBtn').onclick = showCreateProjectDialog;
+    document.getElementById('projectSettingsBtn').onclick = showProjectListSettingsDialog;
+    document.getElementById('projectBackBtn').onclick = showMainMenu;
+    menuRoot.querySelectorAll('.project-card').forEach(button => {
+      button.onclick = () => openProject(button.dataset.projectId);
+    });
+    return;
+  }
+
   menuRoot.innerHTML = `
     <div class="menu-screen">
       <div class="menu-brand">
@@ -120,12 +155,12 @@ function renderMenu() {
         <button class="mode-card" id="sandboxModeBtn" type="button">
           <span class="mode-card-label">Play</span>
           <strong>Sandbox Mode</strong>
-          <span>Build and test circuits freely</span>
+          <span>Build circuits out of primitive gates</span>
         </button>
         <button class="mode-card" id="puzzleModeBtn" type="button">
           <span class="mode-card-label">Challenge</span>
           <strong>Puzzle Mode</strong>
-          <span>Complete Challenges by building a circuit</span>
+          <span>Complete challenges with limited inventory</span>
         </button>
       </div>
     </div>
@@ -153,7 +188,7 @@ function renderHeader() {
   const headerBrand = document.getElementById('headerBrand');
   if (headerBrand) {
     headerBrand.classList.add('menu-link');
-    headerBrand.onclick = state.currentPuzzle ? showPuzzleMenu : showMainMenu;
+    headerBrand.onclick = state.currentProjectId ? showProjectsMenu : state.currentPuzzle ? showPuzzleMenu : showMainMenu;
   }
   const headerRight = document.getElementById('headerRight');
   const isEditing = state.editingBlockId !== null;
@@ -186,6 +221,40 @@ function renderHeader() {
   sidebarHeader.style.cursor = '';
   sidebarHeader.title = 'Blocks';
   sidebarHeader.onclick = null;
+
+  const searchContainer = document.getElementById('sidebarSearchContainer');
+  if (searchContainer) {
+    searchContainer.innerHTML = '';
+    const searchInput = el('input', 'sidebar-search-input', {
+      type: 'search',
+      placeholder: 'Search blocks',
+      'aria-label': 'Search blocks',
+      value: state.sidebarSearch,
+    });
+    searchInput.addEventListener('input', () => {
+      state.sidebarSearch = searchInput.value.trim().toLowerCase();
+      renderSidebar();
+      const nextInput = document.querySelector('.sidebar-search-input');
+      if (nextInput) {
+        nextInput.focus();
+        nextInput.setSelectionRange(nextInput.value.length, nextInput.value.length);
+      }
+    });
+    searchContainer.appendChild(searchInput);
+  }
+}
+
+function definitionUsesReverseWire(def, allDefs, visiting) {
+  if (!def) return false;
+  if (visiting.has(def.id)) return false;
+  const nextVisiting = new Set(visiting);
+  nextVisiting.add(def.id);
+  return def.nodes.some(node => {
+    if (node.kind === 'WIRE_REVERSE') return true;
+    if (node.kind !== 'CUSTOM') return false;
+    const nestedDef = allDefs.find(candidate => candidate.id === node.defId);
+    return nestedDef ? definitionUsesReverseWire(nestedDef, allDefs, nextVisiting) : false;
+  });
 }
 
 function renderSidebar() {
@@ -201,7 +270,8 @@ function renderSidebar() {
     XNOR: { description: '¬(a ⊕ b) → c', inCount: 2 },
   };
   const puzzleBlocks = state.currentPuzzle ? Object.keys(state.currentPuzzle.blockInventory) : null;
-  const blockKinds = puzzleBlocks || ['AND', 'NOT'];
+  const project = getCurrentProject();
+  const blockKinds = puzzleBlocks || (project ? project.availableGates : ['AND', 'NOT']);
   const builtins = blockKinds.map(kind => ({
     kind,
     label: kind,
@@ -209,10 +279,23 @@ function renderSidebar() {
     inCount: gateDefinitions[kind].inCount,
     outCount: 1,
   }));
-  if (!state.currentPuzzle && state.secretWireUnlocked) {
-    builtins.push({ kind: 'WIRE_REVERSE', label: 'R-Wire', description: 'right → left', inCount: 1, outCount: 1 });
-  }
-  builtins.forEach(item => {
+  const reverseWireUsed = state.nodes.some(node => node.kind === 'WIRE_REVERSE')
+    || state.customBlocks.some(def => definitionUsesReverseWire(def, state.customBlocks, new Set()));
+  const reverseWireVisible = !state.currentPuzzle && (
+    state.secretWireUnlocked || reverseWireUsed
+  );
+  const sidebarItems = reverseWireVisible
+    ? [{
+      kind: 'WIRE_REVERSE',
+      label: 'R-Wire',
+      description: 'right → left',
+      inCount: 1,
+      outCount: 1,
+    }, ...builtins]
+    : builtins;
+  sidebarItems.forEach(item => {
+    if (state.sidebarSearch
+      && !`${item.label} ${item.description}`.toLowerCase().includes(state.sidebarSearch)) return;
     const remaining = state.currentPuzzle ? getPuzzleBlockRemaining(item.kind) : Infinity;
     list.appendChild(renderSidebarItem({
       label: item.label,
@@ -235,6 +318,8 @@ function renderSidebar() {
     }));
   });
   state.customBlocks.forEach(b => {
+    if (state.sidebarSearch
+      && !`${b.name} ${b.description || ''}`.toLowerCase().includes(state.sidebarSearch)) return;
     const isEditingThis = state.editingBlockId === b.id;
     const autoDesc = `${b.inputPins.length} in · ${b.outputPins.length} out`;
     list.appendChild(renderSidebarItem({
@@ -404,12 +489,18 @@ function renderBottomBar() {
     const puzzleStat = el('span', 'stat puzzle-status-label');
     puzzleStat.textContent = `${state.currentPuzzle.puzzle.title} · ${state.puzzleProgress[state.currentPuzzleId] ? 'Solved' : 'Not solved'}`;
     stats.appendChild(puzzleStat);
-  } else if (isEditing) {
+  } else if (state.currentProjectId) {
+    stats.appendChild(el('div', 'divider'));
+    const projectStat = el('span', 'stat project-status-label');
+    projectStat.textContent = getCurrentProject() ? getCurrentProject().name : '';
+    stats.appendChild(projectStat);
+  }
+  if (!state.currentPuzzle && isEditing) {
     stats.appendChild(el('div', 'divider'));
     const editStat = el('span', 'stat editing-label');
     editStat.textContent = 'editing ' + (editingBlock ? editingBlock.name : 'block');
     stats.appendChild(editStat);
-  } else if (isSelecting) {
+  } else if (!state.currentPuzzle && isSelecting) {
     stats.appendChild(el('div', 'divider'));
     const selectionStat = el('span', 'stat editing-label');
     selectionStat.textContent = 'selecting block';

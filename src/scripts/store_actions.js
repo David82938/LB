@@ -1,5 +1,10 @@
 /* ============================================================ STORE ACTIONS */
 function addNodeFromTemplate(kind, position, defId) {
+  const project = getCurrentProject();
+  if (project && PROJECT_GATE_KINDS.includes(kind) && !project.availableGates.includes(kind)) {
+    showToast('Gate unavailable', `This project does not include ${kind} in its starting gates.`, 'toast-error');
+    return;
+  }
   if (state.currentPuzzle && ['NOT', 'AND', 'NAND', 'NOR', 'OR', 'XOR', 'XNOR'].includes(kind)
     && getPuzzleBlockRemaining(kind) <= 0) {
     showToast('No gates left', `This puzzle has no ${kind} gates remaining.`, 'toast-error');
@@ -7,9 +12,7 @@ function addNodeFromTemplate(kind, position, defId) {
   }
   if (kind === 'CUSTOM' && defId && defId === state.editingBlockId) return;
   const s = state;
-  const finalPos = s.nodes.length === 0
-    ? { x: WORLD_WIDTH / 2 - 70, y: WORLD_HEIGHT / 2 - 30 }
-    : { x: position.x, y: position.y };
+  const finalPos = { x: position.x, y: position.y };
   let node;
   if (kind === 'CUSTOM' && defId) {
     const def = s.customBlocks.find(d => d.id === defId);
@@ -31,6 +34,101 @@ function addNodeFromTemplate(kind, position, defId) {
 
 function moveNode(id, position) {
   state.nodes = state.nodes.map(n => n.id === id ? { ...n, position } : n);
+  notify();
+}
+
+function moveSelectedNodes(dx, dy) {
+  const ids = state.selectedNodeIds;
+  if (!ids.size) return;
+  state.nodes = state.nodes.map(node => ids.has(node.id)
+    ? { ...node, position: { x: node.position.x + dx, y: node.position.y + dy } }
+    : node);
+  notify();
+}
+
+function deleteSelectedNodes() {
+  const ids = state.selectedNodeIds;
+  if (!ids.size) return;
+  state.nodes = state.nodes.filter(node => !ids.has(node.id));
+  state.connections = state.connections.filter(connection =>
+    !ids.has(connection.fromNode) && !ids.has(connection.toNode));
+  ids.forEach(clearNodeSimulationState);
+  state.selectedNodeIds = new Set();
+  notify();
+}
+
+function copySelectedNodes() {
+  const ids = state.selectedNodeIds;
+  if (!ids.size) return;
+  const nodes = state.nodes.filter(node => ids.has(node.id)).map(node => ({
+    ...node,
+    position: { ...node.position },
+    inputs: node.inputs.map(pin => ({ ...pin })),
+    outputs: node.outputs.map(pin => ({ ...pin })),
+  }));
+  if (!nodes.length) return;
+  const minX = Math.min(...nodes.map(node => node.position.x));
+  const minY = Math.min(...nodes.map(node => node.position.y));
+  const copiedIds = new Set(nodes.map(node => node.id));
+  const connections = state.connections
+    .filter(connection => copiedIds.has(connection.fromNode) && copiedIds.has(connection.toNode))
+    .map(connection => ({ ...connection }));
+  state.editorClipboard = {
+    nodes: nodes.map(node => ({ ...node, position: { x: node.position.x - minX, y: node.position.y - minY } })),
+    connections,
+  };
+  if (!state.hasShownCopyToast) {
+    state.hasShownCopyToast = true;
+    showToast('Copied', `${nodes.length} node(s) copied.`);
+  }
+}
+
+function pasteClipboardAt(position) {
+  if (!state.editorClipboard) return;
+  if (state.currentPuzzle) {
+    const gateCounts = new Map();
+    state.editorClipboard.nodes.forEach(node => {
+      if (PROJECT_GATE_KINDS.includes(node.kind)) {
+        gateCounts.set(node.kind, (gateCounts.get(node.kind) || 0) + 1);
+      }
+    });
+    for (const [kind, count] of gateCounts) {
+      const remaining = getPuzzleBlockRemaining(kind);
+      if (count > remaining) {
+        showToast(
+          'Not enough gates',
+          `This paste needs ${count} ${kind} gate(s), but only ${remaining} remain in this puzzle.`,
+          'toast-error'
+        );
+        return;
+      }
+    }
+  }
+  const idMap = new Map();
+  const pastedNodes = state.editorClipboard.nodes.map(node => {
+    const id = uid('node');
+    idMap.set(node.id, id);
+    return {
+      ...node,
+      id,
+      position: { x: position.x + node.position.x, y: position.y + node.position.y },
+      inputs: node.inputs.map(pin => ({ ...pin })),
+      outputs: node.outputs.map(pin => ({ ...pin })),
+    };
+  });
+  const pastedConnections = state.editorClipboard.connections
+    .map(connection => ({
+      id: uid('conn'),
+      fromNode: idMap.get(connection.fromNode),
+      fromPin: connection.fromPin,
+      toNode: idMap.get(connection.toNode),
+      toPin: connection.toPin,
+    }))
+    .filter(connection => connection.fromNode && connection.toNode);
+  state.nodes = [...state.nodes, ...pastedNodes];
+  state.connections = [...state.connections, ...pastedConnections];
+  state.selectedNodeIds = new Set(pastedNodes.map(node => node.id));
+  state.pendingFrom = null;
   notify();
 }
 

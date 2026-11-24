@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Logic Builder 2.1</title>
+  <title>Logic Builder 2.2</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48dGV4dCB4PSc1MCUnIHk9JzU1JScgZm9udC1mYW1pbHk9J3NhbnMtc2VyaWYnIGZvbnQtd2VpZ2h0PSdib2xkJyBmb250LXNpemU9JzYwJyBmaWxsPScjRkYwMDAwJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJyBkb21pbmFudC1iYXNlbGluZT0nbWlkZGxlJz5MQjwvdGV4dD48L3N2Zz4=">
   <style>
     /* ============================================================ RESET */
@@ -25,7 +25,7 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: oklch(0.32 0.005 270); border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: oklch(0.4 0.005 270); }
-    
+
     /* ============================================================ THEME */
     :root {
       --radius: 0.625rem;
@@ -60,10 +60,10 @@
       --lb-wire-cold: oklch(0.4 0.005 270);
       --lb-wire-hot: oklch(0.577 0.245 27.325);
     }
-    
+
     /* ============================================================ APP LAYOUT */
     #app { height: 100vh; width: 100vw; display: flex; flex-direction: column; background: var(--background); color: var(--foreground); overflow: hidden; }
-    
+
     /* ============================================================ HEADER */
     #header {
       height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
@@ -91,10 +91,10 @@
       border-radius: 6px; color: var(--muted-foreground); transition: all 0.15s;
     }
     .icon-btn:hover { color: var(--foreground); background: oklch(1 0 0 / 6%); }
-    
+
     /* ============================================================ MAIN */
     #main { display: flex; flex: 1; min-height: 0; }
-    
+
     /* ============================================================ SIDEBAR */
     #sidebar {
       width: 256px; flex-shrink: 0; height: 100%; display: flex; flex-direction: column;
@@ -106,12 +106,15 @@
     }
     .sidebar-header h2 { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--foreground); }
     .sidebar-header svg { color: var(--primary); }
+    .sidebar-search { padding: 8px 8px 8px; border-bottom: 1px solid var(--border); }
+    .sidebar-search-input { width: 100%; height: 32px; border: 1px solid var(--border); border-radius: 6px; background: oklch(1 0 0 / 6%); color: var(--foreground); padding: 0 10px; outline: none; font-size: 12px; }
+    .sidebar-search-input:focus { border-color: var(--primary); }
     .sidebar-list { flex: 1; overflow-y: auto; padding: 8px; }
     .sidebar-list > * + * { margin-top: 4px; }
     .sidebar-footer {
       border-top: 1px solid var(--border); padding: 8px 12px; font-size: 10px; color: var(--muted-foreground);
     }
-    
+
     /* Sidebar item */
     .sidebar-item {
       position: relative; display: flex; align-items: center; gap: 8px;
@@ -161,7 +164,7 @@
     .sidebar-input.mono { font-family: monospace; font-size: 10px; }
     .sidebar-input:focus { border-color: var(--primary); }
     .sidebar-input.name-input { font-size: 12px; }
-    
+
     /* ============================================================ CANVAS */
     #canvasContainer { position: relative; flex: 1; min-width: 0; height: 100%; }
     #viewport {
@@ -188,7 +191,7 @@
     #wireSvg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
     #wireSvg g { pointer-events: auto; }
     #wireSvg g path.hit { cursor: pointer; }
-    
+
     /* Empty state */
     .empty-state {
       position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
@@ -197,7 +200,7 @@
     .empty-state .empty-title { font-size: 24px; font-weight: 600; color: oklch(0.96 0 0 / 40%); margin-bottom: 8px; }
     .empty-state .empty-body { font-size: 14px; color: oklch(0.708 0 0 / 80%); line-height: 1.6; }
     .empty-state .empty-body .hl { color: var(--primary); font-weight: 600; }
-    
+
     /* Pending wire status */
     .pending-status {
       position: absolute; bottom: 8px; left: 8px; font-size: 10px;
@@ -226,12 +229,14 @@
       border-radius: 4px; font-size: 10px; font-family: monospace; color: oklch(0.96 0 0 / 70%); transition: all 0.15s;
     }
     .zoom-label:hover { color: var(--foreground); background: oklch(1 0 0 / 6%); }
-    
+
     /* ============================================================ NODE */
     .node {
       position: absolute; user-select: none;
     }
     .node.dragging-over-sidebar { opacity: 0.6; box-shadow: 0 0 0 2px var(--destructive); }
+    .node.selected .node-body { border-color: var(--primary); box-shadow: 0 0 0 2px oklch(0.577 0.245 27.325 / 55%), 0 4px 12px rgba(0,0,0,0.4); }
+    .editor-selection-box { position: absolute; z-index: 30; pointer-events: none; border: 1px solid var(--primary); background: oklch(0.577 0.245 27.325 / 12%); box-sizing: border-box; }
     .node-body {
       position: relative; border-radius: 8px; border: 1px solid var(--lb-node-border);
       background: var(--lb-node-bg); box-shadow: 0 4px 12px rgba(0,0,0,0.4);
@@ -247,7 +252,7 @@
       color: oklch(0.96 0 0 / 40%); transition: color 0.15s; padding: 0; display: flex;
     }
     .node-header .delete-btn:hover { color: oklch(0.96 0 0 / 80%); }
-    
+
     /* Pin rows (inside node body for non-terminal nodes) */
     .pin-list {
       position: absolute; top: 0; display: flex; flex-direction: column; height: 100%;
@@ -259,7 +264,7 @@
       font-size: 10px; text-transform: uppercase; font-family: monospace; letter-spacing: 0.025em; color: oklch(0.96 0 0 / 70%);
     }
     .pin-row .pin-name.powered { color: var(--primary); }
-    
+
     /* Pin dots (on the edges of the node) */
     .pin-dot {
       position: absolute; border-radius: 50%; border: 2px solid var(--background);
@@ -267,7 +272,7 @@
       width: 14px; height: 14px;
     }
     .pin-dot.powered { box-shadow: 0 0 8px 0 oklch(0.577 0.245 27.325 / 0.7); }
-    
+
     /* Terminal body */
     .terminal-body { padding: 0 8px 4px; }
     .toggle-btn {
@@ -286,7 +291,7 @@
     .lamp-body.powered { border-color: var(--primary); background: oklch(0.577 0.245 27.325 / 25%); box-shadow: 0 0 8px 0 oklch(0.577 0.245 27.325 / 0.7); }
     .lamp-indicator { height: 14px; width: 14px; border-radius: 50%; background: var(--lb-pin); }
     .lamp-indicator.powered { background: var(--lb-pin-active); box-shadow: 0 0 10px 2px var(--lb-pin-active); }
-    
+
     /* Terminal rename */
     .terminal-rename { padding: 0 8px 6px; }
     .terminal-rename .rename-input {
@@ -304,7 +309,7 @@
     .terminal-rename .rename-row { display: flex; align-items: center; gap: 4px; }
     .terminal-rename .rename-row .confirm-btn { color: var(--primary); }
     .terminal-rename .rename-row .cancel-btn { color: oklch(0.96 0 0 / 40%); }
-    
+
     /* ============================================================ BOTTOM BAR */
     #bottomBar {
       height: 56px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
@@ -316,7 +321,7 @@
     .bottom-stats .divider { height: 12px; width: 1px; background: var(--border); }
     .bottom-stats .editing-label { color: var(--primary); }
     .bottom-actions { display: flex; align-items: center; gap: 8px; }
-    
+
     /* Buttons */
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -338,8 +343,15 @@
     }
     .btn-destructive:hover { background: oklch(0.577 0.245 27.325 / 90%); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    
+
     /* ============================================================ DIALOG */
+    .editor-context-menu { position: fixed; z-index: 80; min-width: 180px; max-width: 220px; max-height: 280px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 4px; background: var(--popover); box-shadow: 0 12px 32px rgba(0,0,0,.45); }
+    .editor-context-menu button { display: flex; align-items: center; gap: 9px; width: 100%; height: 30px; padding: 0 10px; border-radius: 5px; text-align: left; color: var(--foreground); font-size: 12px; }
+    .editor-context-menu button:hover { background: oklch(1 0 0 / 7%); }
+    .editor-context-menu button.editor-context-destructive { color: var(--destructive); }
+    .editor-context-menu-icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; flex: 0 0 16px; color: var(--muted-foreground); }
+    .editor-context-menu-icon svg { width: 14px; height: 14px; }
+    .editor-context-menu-divider { height: 1px; margin: 4px 6px; background: var(--border); }
     .dialog-overlay {
       position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
       background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
@@ -383,7 +395,7 @@
     .puzzle-truth-window-close svg { width: 16px; height: 16px; }
     .puzzle-truth-window-body { padding: 0 10px 10px; }
     .puzzle-truth-window .truth-table { margin: 0; }
-    
+
     /* Build dialog */
     .build-info {
       border-radius: 6px; border: 1px solid oklch(0.577 0.245 27.325 / 30%);
@@ -399,8 +411,12 @@
     }
     .form-input.mono { font-family: monospace; }
     .form-input:focus { border-color: var(--primary); }
+    select.form-input { color-scheme: dark; }
+    select.form-input option { background: var(--popover); color: var(--foreground); }
     .form-hint { font-size: 10px; color: oklch(0.708 0 0 / 70%); margin-top: 4px; }
-    
+    .project-metadata-fields .form-group { margin-bottom: 12px; }
+    .project-metadata-fields .form-hint { margin: -4px 0 16px; }
+
     /* Settings */
     .settings-section { margin-bottom: 20px; }
     .settings-section:last-child { margin-bottom: 0; }
@@ -413,7 +429,7 @@
     .range-labels span:first-child { float: left; }
     .range-labels span:last-child { float: right; }
     .range-labels::after { content: ''; display: block; clear: both; }
-    
+
     /* ============================================================ TOAST */
     #toastRoot {
       position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 100;
@@ -433,7 +449,7 @@
     .toast .toast-description { font-size: 12px; opacity: 0.9; margin-top: 2px; }
     @keyframes toast-in { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes toast-out { from { opacity: 1; } to { opacity: 0; transform: translateY(-20px); } }
-    
+
     /* ============================================================ MODE MENU */
     .menu-root { height: 100vh; width: 100vw; overflow: auto; background: var(--lb-canvas); }
     .menu-screen, .mode-screen { min-height: 100%; display: flex; flex-direction: column; align-items: center; }
@@ -455,6 +471,18 @@
     .mode-back { width: auto; }
     .puzzle-heading-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
     .puzzle-grid { width: 100%; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+    .project-list { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+    .project-card { width: 100%; min-height: 64px; padding: 10px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); display: grid; grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr) auto; align-items: center; gap: 16px; text-align: left; transition: border-color .18s, background .18s; }
+    .project-card:hover { border-color: oklch(0.577 0.245 27.325 / 55%); background: oklch(0.577 0.245 27.325 / 7%); }
+    .project-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+    .project-card span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted-foreground); }
+    .project-card small { color: var(--muted-foreground); white-space: nowrap; }
+    .project-empty { width: 100%; padding: 34px 18px; border: 1px dashed var(--border); border-radius: 12px; color: var(--muted-foreground); text-align: center; }
+    .project-gate-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; margin: -4px 0 18px; }
+    .project-gate-options label { display: flex; align-items: center; gap: 8px; color: var(--muted-foreground); font-size: 12px; }
+    .project-gate-options input { accent-color: var(--primary); }
+    .project-description-input { min-height: 72px; resize: vertical; }
+    .project-status-label { color: var(--muted-foreground); }
     .puzzle-card { position: relative; width: 100%; min-width: 0; height: 190px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 12px; background: var(--card); display: flex; align-items: center; justify-content: center; padding: 38px 18px 18px; transition: transform .18s, border-color .18s, background .18s; }
     .puzzle-card:hover { transform: translateY(-4px); border-color: oklch(0.577 0.245 27.325 / 55%); background: oklch(0.577 0.245 27.325 / 7%); }
     .puzzle-card.puzzle-solved { border-color: var(--primary); box-shadow: 0 0 18px oklch(0.577 0.245 27.325 / 35%), inset 0 0 18px oklch(0.577 0.245 27.325 / 8%); }
@@ -464,7 +492,7 @@
     .puzzle-solved-label { position: absolute; right: 12px; top: 18px; color: var(--primary); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
     .puzzle-status-label { color: var(--primary); }
     .puzzle-empty { width: 100%; min-height: 190px; border-radius: 12px; }
-    
+
     /* ============================================================ PUZZLE PACKS */
     .puzzle-packs { width: 100%; display: flex; flex-direction: column; gap: 48px; }
     .puzzle-pack { width: 100%; }
@@ -479,6 +507,10 @@
       .mode-heading { align-items: flex-start; flex-direction: column; gap: 16px; }
       .puzzle-heading-actions { justify-content: flex-start; }
       .puzzle-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .project-card { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; }
+      .project-card strong { grid-column: 1; }
+      .project-card span { grid-column: 1; grid-row: 2; }
+      .project-card small { grid-column: 2; grid-row: 1 / span 2; }
     }
     @media (max-width: 520px) {
       .puzzle-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -486,7 +518,7 @@
     @media (max-width: 360px) {
       .puzzle-grid { grid-template-columns: minmax(0, 1fr); }
     }
-    
+
     /* Mobile editor only */
     .mobile-sidebar-toggle { display: none; }
     @media (max-width: 760px) {
@@ -500,7 +532,7 @@
       .header-right .editing-indicator { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .header-right .legend { display: none; }
       .mobile-sidebar-toggle { display: inline-flex; height: 30px; padding: 0 9px; white-space: nowrap; }
-    
+
       #main { position: relative; }
       #sidebar {
         position: absolute;
@@ -529,23 +561,24 @@
       .sidebar-footer { display: none; }
       .sidebar-actions { position: static; transform: none; opacity: 1; background: none; padding: 0; }
       .action-btn { padding: 5px; }
-    
+
       #bottomBar { height: auto; min-height: 48px; gap: 6px; padding: 5px 7px; }
       .bottom-stats { min-width: 0; flex: 1; gap: 6px; overflow: hidden; font-size: 10px; }
       .bottom-stats .stat { min-width: 0; white-space: nowrap; }
-      .bottom-stats .puzzle-status-label { overflow: hidden; text-overflow: ellipsis; }
+      .bottom-stats .puzzle-status-label,
+      .bottom-stats .project-status-label { overflow: hidden; text-overflow: ellipsis; }
       .bottom-actions { flex-shrink: 0; gap: 4px; }
       .bottom-actions .btn { height: 32px; padding: 0 8px; font-size: 11px; }
     }
-    
+
     @media (max-width: 420px) {
       .header-right .editing-indicator { max-width: 92px; font-size: 9px; }
       #bottomBar { align-items: center; }
-      .bottom-stats > .stat:not(.puzzle-status-label),
+      .bottom-stats > .stat:not(.puzzle-status-label):not(.project-status-label),
       .bottom-stats > .divider { display: none; }
       .bottom-actions .btn { gap: 4px; padding: 0 6px; }
     }
-    
+
     /* ============================================================ MISC */
     .hidden { display: none !important; }
     .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -567,6 +600,7 @@
     <div id="main">
       <aside id="sidebar">
         <div class="sidebar-header" id="sidebarHeaderIcon"></div>
+        <div class="sidebar-search" id="sidebarSearchContainer"></div>
         <div class="sidebar-list" id="sidebarList"></div>
         <div class="sidebar-footer">Drag onto canvas · click to add · drag a node back here to delete</div>
       </aside>
@@ -586,9 +620,10 @@
   <div id="menuRoot" class="menu-root"></div>
   <div id="dialogRoot"></div>
   <div id="toastRoot"></div>
+  <div id="editorContextMenu" class="editor-context-menu hidden"></div>
   <script>
     "use strict";
-    
+
     /* ============================================================ ICONS */
     const ICONS = {
       boxes: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-blocks preview-icon"><path d="M10 22V7a1 1 0 0 0-1-1H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5a1 1 0 0 0-1-1H2"/><rect x="14" y="2" width="8" height="8" rx="1"/></svg>`,
@@ -608,6 +643,10 @@
       checkSm: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
       xSm: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`,
       trashSm: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+      copy: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>`,
+      clipboard: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 4.5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2V6H9z"/></svg>`,
+      toggle: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="6"/><circle cx="8" cy="12" r="3"/></svg>`,
+      lamp: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M8.2 14.5A7 7 0 1 1 15.8 14.5c-.9.7-1.3 1.5-1.5 2.5h-4.6c-.2-1-.6-1.8-1.5-2.5z"/></svg>`,
     };
     /* ============================================================ CONSTANTS */
     const WORLD_WIDTH = 6000;
@@ -620,13 +659,13 @@
     const PIN_HEIGHT = 28;
     const PIN_RADIUS = 7;
     const TERMINAL_PIN_Y = TERMINAL_HEADER_HEIGHT + 14;
-    
+
     const APP_CONFIG = {
       secretPassword: '4780',
       secretSettingsDelayMs: 5000,
       secretUnlockClicks: 5,
     };
-    
+
     function nodeWidth(node) {
       if (node.kind === 'CUSTOM') return NODE_WIDTH_CUSTOM;
       if (node.kind === 'INPUT' || node.kind === 'OUTPUT') return NODE_WIDTH_TERMINAL;
@@ -653,17 +692,35 @@
     }
     function wirePath(from, to, fromNodeId, toNodeId) {
       const dx = Math.abs(to.x - from.x);
-      const offset = Math.max(40, dx * 0.4);
-      const c1x = from.x + offset;
-      const c2x = to.x - offset;
+      const offset = Math.max(40, dx * 0.35);
+      const fromNode = fromNodeId ? state.nodes.find(node => node.id === fromNodeId) : null;
+      const toNode = toNodeId ? state.nodes.find(node => node.id === toNodeId) : null;
+
+      let c1x;
+      if (fromNode && fromNode.kind === 'WIRE_REVERSE') {
+        c1x = from.x - offset;
+      } else if (fromNode) {
+        c1x = from.x + offset;
+      } else {
+        c1x = to.x >= from.x ? from.x + offset : from.x - offset;
+      }
+
+      let c2x;
+      if (toNode && toNode.kind === 'WIRE_REVERSE') {
+        c2x = to.x + offset;
+      } else if (toNode) {
+        c2x = to.x - offset;
+      } else {
+        c2x = to.x >= from.x ? to.x - offset : to.x + offset;
+      }
       return `M ${from.x},${from.y} C ${c1x},${from.y} ${c2x},${to.y} ${to.x},${to.y}`;
     }
     /* ============================================================ STATE */
     let _idCounter = 1;
     function uid(prefix) { _idCounter += 1; return `${prefix}_${Date.now().toString(36)}_${_idCounter}`; }
-    
+
     const wireInternals = new Map();
-    
+
     const state = {
       view: 'menu',
       nodes: [],
@@ -689,18 +746,26 @@
       currentPuzzleId: null,
       puzzleProgress: {},
       sandboxSnapshot: null,
+      projects: [],
+      currentProjectId: null,
+      sidebarSearch: '',
+      selectedNodeIds: new Set(),
+      editorSelectionRect: null,
+      editorClipboard: null,
+      editorCursorWorld: { x: 0, y: 0 },
+      hasShownCopyToast: false,
       simulationCache: new Map(),
       graphOutputMemory: new Map(),
       notifyFramePending: false,
     };
-    
+
     const subscribers = new Set();
     function subscribe(fn) { subscribers.add(fn); return () => subscribers.delete(fn); }
     let notifyWindowStart = 0;
     let notifyWindowCount = 0;
     const NOTIFY_LIMIT_PER_MS = 2;
     const NOTIFY_WINDOW_MS = 1;
-    
+
     function notify() {
       if (state.notifyFramePending) return;
       state.notifyFramePending = true;
@@ -720,13 +785,13 @@
         subscribers.forEach(fn => fn());
       });
     }
-    
+
     function showMainMenu() {
       closeAllDialogs();
       state.view = 'menu';
       notify();
     }
-    
+
     function showPuzzleMenu() {
       if (state.currentPuzzle) {
         leavePuzzle();
@@ -735,11 +800,10 @@
       state.view = 'puzzles';
       notify();
     }
-    
+
     function showSandbox() {
       if (state.currentPuzzle) leavePuzzle(false);
-      state.view = 'sandbox';
-      notify();
+      showProjectsMenu();
     }
     /* ============================================================ NODE FACTORY */
     function makeGate(kind) {
@@ -766,7 +830,7 @@
       }
       return { inputs: [], outputs: [] };
     }
-    
+
     function createNode(kind, position, opts) {
       opts = opts || {};
       const base = makeGate(kind);
@@ -797,7 +861,7 @@
     let wasmGateEngineReady = false;
     let simulationContinuationPending = false;
     let simulationEvaluationPass = 0;
-    
+
     function scheduleSimulationContinuation() {
       if (simulationContinuationPending || typeof requestAnimationFrame !== 'function') return;
       simulationContinuationPending = true;
@@ -806,7 +870,7 @@
         renderSimulationFrame();
       });
     }
-    
+
     function unsignedLeb(value) {
       const bytes = [];
       do {
@@ -817,11 +881,11 @@
       } while (value !== 0);
       return bytes;
     }
-    
+
     function wasmSection(sectionId, payload) {
       return [sectionId, ...unsignedLeb(payload.length), ...payload];
     }
-    
+
     function createGateWasmBytes() {
       // Wasm module: gate(op,a,b), with op 0..6 for AND, NOT, NAND, NOR, OR, XOR, XNOR.
       const nestedExpression = (op, expression) => [
@@ -837,7 +901,7 @@
       const norExpr = [...orExpr, 0x45];
       const xorExpr = [...localGet(1), ...localGet(2), 0x73];
       const xnorExpr = [...xorExpr, 0x45];
-    
+
       let body = nestedExpression(0, andExpr);
       body.push(0x05);
       body.push(...nestedExpression(1, notExpr));
@@ -854,14 +918,14 @@
       body.push(0x05, ...i32Const(0));
       for (let i = 0; i < 7; i++) body.push(0x0b);
       body.push(0x0b);
-    
+
       const typePayload = [0x01, 0x60, 0x03, 0x7f, 0x7f, 0x7f, 0x01, 0x7f];
       const functionPayload = [0x01, 0x00];
       const exportName = [0x67, 0x61, 0x74, 0x65];
       const exportPayload = [0x01, ...unsignedLeb(exportName.length), ...exportName, 0x00, 0x00];
       const functionBody = [0x00, ...body];
       const codePayload = [0x01, ...unsignedLeb(functionBody.length), ...functionBody];
-    
+
       return new Uint8Array([
         0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
         ...wasmSection(0x01, typePayload),
@@ -870,7 +934,7 @@
         ...wasmSection(0x0a, codePayload),
       ]);
     }
-    
+
     async function initWasmGateEngine() {
       if (typeof WebAssembly === 'undefined') return;
       try {
@@ -883,7 +947,7 @@
         wasmGateEngineReady = false;
       }
     }
-    
+
     function graphHasFeedbackLoop(def) {
       const outgoing = new Map(def.nodes.map(node => [node.id, []]));
       for (const connection of def.connections) {
@@ -905,7 +969,7 @@
       };
       return def.nodes.some(node => visit(node.id));
     }
-    
+
     function blockHasStatefulLogic(def, allDefs, visited) {
       if (!def || visited.has(def.id)) return true;
       if (graphHasFeedbackLoop(def)) return true;
@@ -917,7 +981,7 @@
         return blockHasStatefulLogic(nestedDef, allDefs, nextVisited);
       });
     }
-    
+
     function getStatelessCacheKey(kind, inputs, def, allDefs) {
       if (kind === 'CUSTOM' && blockHasStatefulLogic(def, allDefs, new Set())) return null;
       if (kind === 'CUSTOM' && def) {
@@ -926,22 +990,22 @@
       }
       return `${kind}:${inputs.map(Boolean).join('')}`;
     }
-    
+
     function getStatelessCacheResult(key) {
       return state.simulationCache.get(key);
     }
-    
+
     function cacheStatelessResult(key, result) {
       if (state.simulationCache.size >= 4096) state.simulationCache.clear();
       state.simulationCache.set(key, result);
     }
-    
+
     function evalGate(kind, inputs, def, allDefs, instanceId) {
       if (!kind) return [];
       const cacheKey = getStatelessCacheKey(kind, inputs, def, allDefs);
       const cached = cacheKey ? getStatelessCacheResult(cacheKey) : undefined;
       if (cached !== undefined) return cached;
-    
+
       let result;
       const opCodes = { AND: 0, NOT: 1, NAND: 2, NOR: 3, OR: 4, XOR: 5, XNOR: 6 };
       if (wasmGateEngineReady && Object.prototype.hasOwnProperty.call(opCodes, kind)) {
@@ -972,11 +1036,11 @@
           Boolean(inner.nodeInputs[lamp.id] && inner.nodeInputs[lamp.id]['in'])
         );
       } else result = [];
-    
+
       if (result !== null && cacheKey) cacheStatelessResult(cacheKey, result);
       return result || [];
     }
-    
+
     function clearNodeSimulationState(nodeId) {
       state.graphOutputMemory.delete(nodeId);
       const customPrefix = `custom:${nodeId}:`;
@@ -984,7 +1048,7 @@
         if (key.startsWith(customPrefix) || key.includes(`:${nodeId}:`)) state.graphOutputMemory.delete(key);
       }
     }
-    
+
     function evaluateGraph(nodes, connections, toggleOverrides, defs, wireTransit, memoryScope) {
       const nodeOutputs = {};
       const nodeInputs = {};
@@ -1009,7 +1073,7 @@
           for (const p of n.outputs) nodeOutputs[n.id][p.id] = v;
         }
       }
-    
+
       if (wireTransit === undefined) {
         const nodesById = new Map(nodes.map(node => [node.id, node]));
         const outgoing = new Map(nodes.map(node => [node.id, []]));
@@ -1017,7 +1081,7 @@
           const list = outgoing.get(connection.fromNode);
           if (list) list.push(connection);
         }
-    
+
         const queue = [];
         const queued = new Set();
         const enqueue = id => {
@@ -1035,7 +1099,7 @@
           inputs[connection.toPin] = value;
           enqueue(connection.toNode);
         };
-    
+
         connections.forEach(propagate);
         nodes.forEach(node => enqueue(node.id));
         let cursor = 0;
@@ -1049,12 +1113,12 @@
           operations += 1;
           const node = nodesById.get(nodeId);
           if (!node) continue;
-    
+
           const inVals = node.inputs.map(pin => Boolean(nodeInputs[node.id][pin.id]));
           const def = node.defId ? (defs && defs.find(item => item.id === node.defId)) : undefined;
           const instanceId = memoryScope ? `${memoryScope}/${node.id}` : node.id;
           const outVals = evalGate(node.kind, inVals, def, defs, instanceId);
-    
+
           node.outputs.forEach((pin, index) => {
             const next = Boolean(outVals[index]);
             if (nodeOutputs[node.id][pin.id] !== next) {
@@ -1063,7 +1127,7 @@
             }
           });
         }
-    
+
         if (useMemory) {
           const liveIds = memoryScope
             ? null
@@ -1076,7 +1140,7 @@
         }
         return { nodeOutputs, nodeInputs };
       }
-    
+
       const maxIterations = Math.max(20, Math.min(200, nodes.length * 4));
       for (let iter = 0; iter < maxIterations; iter++) {
         let changed = false;
@@ -1110,7 +1174,7 @@
       }
       return { nodeOutputs, nodeInputs };
     }
-    
+
     function getEvalResult() {
       const wireTransit = state.wireDelay > 0 ? state.wireTransit : undefined;
       return evaluateGraph(state.nodes, state.connections, undefined, state.customBlocks, wireTransit);
@@ -1159,6 +1223,11 @@
     }
     /* ============================================================ STORE ACTIONS */
     function addNodeFromTemplate(kind, position, defId) {
+      const project = getCurrentProject();
+      if (project && PROJECT_GATE_KINDS.includes(kind) && !project.availableGates.includes(kind)) {
+        showToast('Gate unavailable', `This project does not include ${kind} in its starting gates.`, 'toast-error');
+        return;
+      }
       if (state.currentPuzzle && ['NOT', 'AND', 'NAND', 'NOR', 'OR', 'XOR', 'XNOR'].includes(kind)
         && getPuzzleBlockRemaining(kind) <= 0) {
         showToast('No gates left', `This puzzle has no ${kind} gates remaining.`, 'toast-error');
@@ -1166,9 +1235,7 @@
       }
       if (kind === 'CUSTOM' && defId && defId === state.editingBlockId) return;
       const s = state;
-      const finalPos = s.nodes.length === 0
-        ? { x: WORLD_WIDTH / 2 - 70, y: WORLD_HEIGHT / 2 - 30 }
-        : { x: position.x, y: position.y };
+      const finalPos = { x: position.x, y: position.y };
       let node;
       if (kind === 'CUSTOM' && defId) {
         const def = s.customBlocks.find(d => d.id === defId);
@@ -1187,39 +1254,134 @@
       s.pendingFrom = null;
       notify();
     }
-    
+
     function moveNode(id, position) {
       state.nodes = state.nodes.map(n => n.id === id ? { ...n, position } : n);
       notify();
     }
-    
+
+    function moveSelectedNodes(dx, dy) {
+      const ids = state.selectedNodeIds;
+      if (!ids.size) return;
+      state.nodes = state.nodes.map(node => ids.has(node.id)
+        ? { ...node, position: { x: node.position.x + dx, y: node.position.y + dy } }
+        : node);
+      notify();
+    }
+
+    function deleteSelectedNodes() {
+      const ids = state.selectedNodeIds;
+      if (!ids.size) return;
+      state.nodes = state.nodes.filter(node => !ids.has(node.id));
+      state.connections = state.connections.filter(connection =>
+        !ids.has(connection.fromNode) && !ids.has(connection.toNode));
+      ids.forEach(clearNodeSimulationState);
+      state.selectedNodeIds = new Set();
+      notify();
+    }
+
+    function copySelectedNodes() {
+      const ids = state.selectedNodeIds;
+      if (!ids.size) return;
+      const nodes = state.nodes.filter(node => ids.has(node.id)).map(node => ({
+        ...node,
+        position: { ...node.position },
+        inputs: node.inputs.map(pin => ({ ...pin })),
+        outputs: node.outputs.map(pin => ({ ...pin })),
+      }));
+      if (!nodes.length) return;
+      const minX = Math.min(...nodes.map(node => node.position.x));
+      const minY = Math.min(...nodes.map(node => node.position.y));
+      const copiedIds = new Set(nodes.map(node => node.id));
+      const connections = state.connections
+        .filter(connection => copiedIds.has(connection.fromNode) && copiedIds.has(connection.toNode))
+        .map(connection => ({ ...connection }));
+      state.editorClipboard = {
+        nodes: nodes.map(node => ({ ...node, position: { x: node.position.x - minX, y: node.position.y - minY } })),
+        connections,
+      };
+      if (!state.hasShownCopyToast) {
+        state.hasShownCopyToast = true;
+        showToast('Copied', `${nodes.length} node(s) copied.`);
+      }
+    }
+
+    function pasteClipboardAt(position) {
+      if (!state.editorClipboard) return;
+      if (state.currentPuzzle) {
+        const gateCounts = new Map();
+        state.editorClipboard.nodes.forEach(node => {
+          if (PROJECT_GATE_KINDS.includes(node.kind)) {
+            gateCounts.set(node.kind, (gateCounts.get(node.kind) || 0) + 1);
+          }
+        });
+        for (const [kind, count] of gateCounts) {
+          const remaining = getPuzzleBlockRemaining(kind);
+          if (count > remaining) {
+            showToast(
+              'Not enough gates',
+              `This paste needs ${count} ${kind} gate(s), but only ${remaining} remain in this puzzle.`,
+              'toast-error'
+            );
+            return;
+          }
+        }
+      }
+      const idMap = new Map();
+      const pastedNodes = state.editorClipboard.nodes.map(node => {
+        const id = uid('node');
+        idMap.set(node.id, id);
+        return {
+          ...node,
+          id,
+          position: { x: position.x + node.position.x, y: position.y + node.position.y },
+          inputs: node.inputs.map(pin => ({ ...pin })),
+          outputs: node.outputs.map(pin => ({ ...pin })),
+        };
+      });
+      const pastedConnections = state.editorClipboard.connections
+        .map(connection => ({
+          id: uid('conn'),
+          fromNode: idMap.get(connection.fromNode),
+          fromPin: connection.fromPin,
+          toNode: idMap.get(connection.toNode),
+          toPin: connection.toPin,
+        }))
+        .filter(connection => connection.fromNode && connection.toNode);
+      state.nodes = [...state.nodes, ...pastedNodes];
+      state.connections = [...state.connections, ...pastedConnections];
+      state.selectedNodeIds = new Set(pastedNodes.map(node => node.id));
+      state.pendingFrom = null;
+      notify();
+    }
+
     function removeNode(id) {
       state.nodes = state.nodes.filter(n => n.id !== id);
       state.connections = state.connections.filter(c => c.fromNode !== id && c.toNode !== id);
       clearNodeSimulationState(id);
       notify();
     }
-    
+
     function renameNode(id, name) {
       state.nodes = state.nodes.map(n => n.id === id ? { ...n, name } : n);
       notify();
     }
-    
+
     function toggleInput(id) {
       state.nodes = state.nodes.map(n => (n.kind === 'INPUT' && n.id === id) ? { ...n, state: !(n.state || false) } : n);
       notify();
     }
-    
+
     function startPending(nodeId, pinId, kind) {
       state.pendingFrom = { nodeId, pinId, kind };
       notify();
     }
-    
+
     function clearPending() {
       state.pendingFrom = null;
       notify();
     }
-    
+
     function completePending(nodeId, pinId, kind) {
       const pending = state.pendingFrom;
       if (!pending) return false;
@@ -1243,7 +1405,7 @@
       notify();
       return true;
     }
-    
+
     function nextDefaultName(nodes, kind) {
       const prefix = kind === 'INPUT' ? 'IN_' : 'OUT_';
       let n = 1;
@@ -1251,7 +1413,7 @@
       while (existing.has(`${prefix}${n}`)) n++;
       return `${prefix}${n}`;
     }
-    
+
     function createTerminalAt(kind, position, connectFromPending) {
       const s = state;
       let name;
@@ -1281,19 +1443,19 @@
       notify();
       return node.id;
     }
-    
+
     function removeConnection(id) {
       state.connections = state.connections.filter(c => c.id !== id);
       notify();
     }
-    
+
     function nextBlockName(blocks) {
       const existing = new Set(blocks.map(b => b.name));
       let n = 1;
       while (existing.has(`Block ${n}`)) n++;
       return `Block ${n}`;
     }
-    
+
     function normalizeRect(x1, y1, x2, y2) {
       const left = Math.min(x1, x2);
       const top = Math.min(y1, y2);
@@ -1306,7 +1468,7 @@
         h: Math.max(1, bottom - top),
       };
     }
-    
+
     function rectIntersectsNode(node, rect) {
       const left = node.position.x;
       const top = node.position.y;
@@ -1314,7 +1476,7 @@
       const bottom = top + nodeHeight(node);
       return rect.x < right && rect.x + rect.w > left && rect.y < bottom && rect.y + rect.h > top;
     }
-    
+
     function getConnectedNodeIdsFromSeed(seedIds) {
       const selected = new Set(seedIds);
       const queue = [...seedIds];
@@ -1333,14 +1495,14 @@
       }
       return selected;
     }
-    
+
     function getNodesInSelectionRect(rect) {
       if (!rect) return new Set();
       const seed = state.nodes.filter(node => rectIntersectsNode(node, rect)).map(node => node.id);
       if (seed.length === 0) return new Set();
       return getConnectedNodeIdsFromSeed(seed);
     }
-    
+
     function enterSelectionMode(name, description) {
       state.selectionMode = true;
       state.selectionRect = null;
@@ -1350,7 +1512,7 @@
       document.body.style.cursor = 'crosshair';
       notify();
     }
-    
+
     function cancelSelectionMode() {
       state.selectionMode = false;
       state.selectionRect = null;
@@ -1359,7 +1521,7 @@
       document.body.style.cursor = '';
       notify();
     }
-    
+
     function buildSelectedBlock(name, description) {
       if (!state.selectionRect) {
         showToast('Nothing selected', 'Drag a rectangle over at least one connected circuit.', 'toast-error');
@@ -1370,7 +1532,7 @@
         showToast('Nothing selected', 'Drag a rectangle over at least one connected circuit.', 'toast-error');
         return;
       }
-    
+
       const nodes = state.nodes.filter(node => selectedIds.has(node.id));
       const connections = state.connections.filter(conn => selectedIds.has(conn.fromNode) && selectedIds.has(conn.toNode));
       const def = buildDefFromCanvas(nodes, connections, state.customBlocks, undefined, name, description);
@@ -1378,7 +1540,7 @@
         showToast('No usable circuit', 'The selected area must include at least one input or output node.', 'toast-error');
         return;
       }
-    
+
       state.customBlocks = [...state.customBlocks, def];
       state.selectionMode = false;
       state.selectionRect = null;
@@ -1389,7 +1551,7 @@
       const label = def.name || 'Block';
       showToast('Block created', `${label} · ${def.inputPins.length} in, ${def.outputPins.length} out`);
     }
-    
+
     function buildDefFromCanvas(nodes, connections, existingBlocks, existingId, customName, customDescription) {
       const toggles = nodes.filter(n => n.kind === 'INPUT');
       const lamps = nodes.filter(n => n.kind === 'OUTPUT');
@@ -1415,7 +1577,7 @@
       const description = customDescription !== undefined ? customDescription : (existingId ? (existing ? existing.description : undefined) : 'Custom Block');
       return { id, name, description, inputPins, outputPins, nodes: remappedNodes, connections: remappedConns, createdAt: Date.now() };
     }
-    
+
     function buildCustomBlock(name, description) {
       const def = buildDefFromCanvas(state.nodes, state.connections, state.customBlocks, undefined, name, description);
       if (!def) return null;
@@ -1426,7 +1588,7 @@
       notify();
       return def.id;
     }
-    
+
     function editCustomBlock(defId) {
       const def = state.customBlocks.find(b => b.id === defId);
       if (!def) return;
@@ -1442,7 +1604,7 @@
       state.wireTransit = {};
       notify();
     }
-    
+
     function saveEditedBlock() {
       const editingId = state.editingBlockId;
       if (!editingId) return null;
@@ -1463,7 +1625,7 @@
       notify();
       return editingId;
     }
-    
+
     function cancelEdit() {
       if (!state.editingBlockId) return;
       state.nodes = state.stashedNodes;
@@ -1476,7 +1638,7 @@
       state.wireTransit = {};
       notify();
     }
-    
+
     function deleteCustomBlock(defId) {
       if (state.editingBlockId === defId) {
         state.nodes = state.stashedNodes;
@@ -1493,17 +1655,17 @@
       state.connections = state.connections.filter(c => !doomedNodeIds.has(c.fromNode) && !doomedNodeIds.has(c.toNode));
       notify();
     }
-    
+
     function renameCustomBlock(defId, newName) {
       state.customBlocks = state.customBlocks.map(b => b.id === defId ? { ...b, name: newName } : b);
       notify();
     }
-    
+
     function setCustomBlockDescription(defId, desc) {
       state.customBlocks = state.customBlocks.map(b => b.id === defId ? { ...b, description: desc } : b);
       notify();
     }
-    
+
     function setZoom(z) {
       const viewport = document.getElementById('viewport');
       const previousZoom = state.zoom;
@@ -1518,14 +1680,14 @@
         viewport.scrollTo(centerWorldX * nextZoom - centerX, centerWorldY * nextZoom - centerY);
       }
     }
-    
+
     function setWireDelay(ms) {
       wireInternals.clear();
       state.wireDelay = Math.max(0, Math.min(1000, Math.round(ms)));
       state.wireTransit = {};
       notify();
     }
-    
+
     function resetGame() {
       wireInternals.clear();
       state.nodes = [];
@@ -1561,7 +1723,7 @@
         setTimeout(() => el.remove(), 200);
       }, 4000);
     }
-    
+
     function escapeHtml(s) {
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
@@ -1569,7 +1731,7 @@
     function closeAllDialogs() {
       document.getElementById('dialogRoot').innerHTML = '';
     }
-    
+
     function showDialog({ title, body, maxWidth }) {
       const root = document.getElementById('dialogRoot');
       const overlay = document.createElement('div');
@@ -1596,7 +1758,7 @@
       document.addEventListener('keydown', escHandler);
       return { close, bodyEl, panel };
     }
-    
+
     function showConfirmDialog({ title, message, confirmLabel, cancelLabel, destructive, onConfirm, onCancel }) {
       const body = document.createElement('div');
       body.innerHTML = `<p>${escapeHtml(message)}</p><div class="dialog-actions"></div>`;
@@ -1614,7 +1776,7 @@
       confirmBtn.onclick = () => { dlg.close(); if (onConfirm) onConfirm(); };
       return dlg;
     }
-    
+
     function showRemovePuzzlePacksDialog() {
       const body = document.createElement('div');
       body.innerHTML = `
@@ -1633,7 +1795,7 @@
         removePuzzleExpansions(deleteSaves);
       };
     }
-    
+
     function showPuzzleSettingsDialog() {
       const body = document.createElement('div');
       body.innerHTML = `
@@ -1684,7 +1846,42 @@
         });
       };
     }
-    
+
+    function showProjectListSettingsDialog() {
+      const body = document.createElement('div');
+      body.innerHTML = `
+        <section class="puzzle-settings-category">
+          <h3>Projects</h3>
+          <p>Export every project, including its canvas and custom blocks, to a single save file.</p>
+          <div class="puzzle-settings-actions">
+            <button class="btn btn-sm" id="exportAllProjectsBtn">Export all projects</button>
+            <button class="btn btn-sm" id="importProjectsBtn">Import projects</button>
+          </div>
+        </section>
+        <section class="puzzle-settings-category dangerous">
+          <h3>Dangerous</h3>
+          <p>Delete every saved project. This cannot be undone.</p>
+          <button class="btn btn-sm btn-destructive" id="deleteAllProjectsBtn">Delete all projects</button>
+        </section>
+      `;
+      const dlg = showDialog({ title: 'Project settings', body, maxWidth: 'medium' });
+      body.querySelector('#exportAllProjectsBtn').onclick = exportAllProjects;
+      body.querySelector('#importProjectsBtn').onclick = () => {
+        dlg.close();
+        chooseProjectImportFile();
+      };
+      body.querySelector('#deleteAllProjectsBtn').onclick = () => {
+        dlg.close();
+        showConfirmDialog({
+          title: 'Delete all projects?',
+          message: 'This permanently deletes every saved project and its canvas. This cannot be undone.',
+          confirmLabel: 'Delete all',
+          destructive: true,
+          onConfirm: deleteAllProjects,
+        });
+      };
+    }
+
     function showBuildDialog({ defaultName, defaultDescription, inputCount, outputCount, onBuild, onCancel }) {
       const body = document.createElement('div');
       body.innerHTML = `
@@ -1728,7 +1925,7 @@
       descInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doBuild(); });
       return dlg;
     }
-    
+
     function resetSecretSidebarTrigger() {
       state.settingsSecretReady = false;
       state.settingsSecretClickCount = 0;
@@ -1740,7 +1937,7 @@
         sidebarHeader.onclick = null;
       }
     }
-    
+
     function revealSecretSidebar() {
       const sidebarHeader = document.getElementById('sidebarHeaderIcon');
       if (!sidebarHeader) return;
@@ -1759,7 +1956,7 @@
         }
       };
     }
-    
+
     function showSecretPasswordDialog() {
       const body = document.createElement('div');
       body.innerHTML = `
@@ -1795,7 +1992,7 @@
       input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
       setTimeout(() => input.focus(), 0);
     }
-    
+
     function startSettingsSecretTimer() {
       const resetTimer = () => {
         clearTimeout(window.__lbSecretSettingsTimer);
@@ -1813,12 +2010,12 @@
       handlers.forEach(([eventName, handler]) => document.body.addEventListener(eventName, handler));
       resetTimer();
     }
-    
+
     function renderSettingsTruthTable(puzzle) {
       if (!Array.isArray(puzzle.truth_table)) return '<p class="settings-description">Truth table unavailable.</p>';
       return '<button class="btn btn-sm" id="showPuzzleTruthTableBtn" type="button">Open truth table</button>';
     }
-    
+
     function renderTruthTableMarkup(puzzle) {
       if (!Array.isArray(puzzle.truth_table)) return '<p class="settings-description">Truth table unavailable.</p>';
       const headers = Array.from({ length: puzzle.input_count || 0 }, (_, i) => `I${i}`)
@@ -1826,11 +2023,11 @@
       const rows = puzzle.truth_table.map(row => `<tr>${row.map(value => `<td>${value ? 1 : 0}</td>`).join('')}</tr>`).join('');
       return `<div class="truth-table-scroll"><table class="truth-table"><thead><tr>${headers.map(value => `<th>${value}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
     }
-    
+
     function showPuzzleTruthTableWindow() {
       if (!state.currentPuzzle) return;
       if (document.getElementById('puzzleTruthTableWindow')) return;
-    
+
       const panel = el('div', 'puzzle-truth-window', { id: 'puzzleTruthTableWindow', role: 'dialog', 'aria-label': 'Puzzle truth table' });
       const header = el('div', 'puzzle-truth-window-header');
       const closeButton = el('button', 'puzzle-truth-window-close', {
@@ -1842,12 +2039,12 @@
       closeButton.innerHTML = ICONS.x;
       header.appendChild(closeButton);
       panel.appendChild(header);
-    
+
       const table = el('div', 'puzzle-truth-window-body');
       table.innerHTML = renderTruthTableMarkup(state.currentPuzzle.puzzle);
       panel.appendChild(table);
       document.body.appendChild(panel);
-    
+
       header.addEventListener('pointerdown', (event) => {
         if (event.target.closest('button')) return;
         event.preventDefault();
@@ -1860,7 +2057,7 @@
         panel.style.top = `${startTop}px`;
         panel.style.transform = 'none';
         header.setPointerCapture(event.pointerId);
-    
+
         const onMove = (moveEvent) => {
           const maxLeft = Math.max(0, window.innerWidth - panel.offsetWidth);
           const maxTop = Math.max(0, window.innerHeight - panel.offsetHeight);
@@ -1877,11 +2074,12 @@
         header.addEventListener('pointercancel', stopDragging);
       });
     }
-    
+
     function showSettings() {
       const body = document.createElement('div');
       const wireDelay = state.wireDelay;
       const puzzle = state.currentPuzzle && state.currentPuzzle.puzzle;
+      const project = state.currentProjectId ? getCurrentProject() : null;
       const projectSettings = puzzle
         ? `
           <div class="settings-section">
@@ -1890,7 +2088,28 @@
             ${renderSettingsTruthTable(puzzle)}
           </div>
         `
-        : `
+        : project
+          ? `
+          <div class="settings-section">
+            <div class="settings-label"><span>Project</span></div>
+            <div class="project-metadata-fields">
+              <div class="form-group">
+                <label class="form-label" for="projectEditorName">Name</label>
+                <input class="form-input" id="projectEditorName" maxlength="80" value="${escapeHtml(project.name)}">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="projectEditorDescription">Description</label>
+                <input class="form-input" id="projectEditorDescription" maxlength="500" value="${escapeHtml(project.description)}">
+              </div>
+              <p class="form-hint">Press Enter in either field to save.</p>
+            </div>
+            <div class="dialog-actions" style="justify-content:flex-start">
+              <button class="btn btn-sm" id="exportProjectBtn">Export project</button>
+              <button class="btn btn-sm btn-destructive" id="deleteProjectBtn">Delete project</button>
+            </div>
+          </div>
+        `
+          : `
           <div class="settings-section">
             <div class="settings-label"><span>Project file</span></div>
             <p class="settings-description">Export the current canvas and custom blocks to JSON, or import them from a saved project file.</p>
@@ -1908,7 +2127,7 @@
             <button class="btn btn-sm" id="resetBtn">${ICONS.check} Back to puzzles</button>
           </div>
         `
-        : `
+        : project ? '' : `
           <div class="settings-section">
             <div class="settings-label"><span>Reset game</span></div>
             <p class="settings-description">Clears the canvas, removes all custom blocks, and resets settings to defaults. Cannot be undone.</p>
@@ -1924,8 +2143,7 @@
         </div>
         <div class="settings-divider"></div>
         ${projectSettings}
-        <div class="settings-divider"></div>
-        ${resetSettings}
+        ${resetSettings ? `<div class="settings-divider"></div>${resetSettings}` : ''}
       `;
       const dlg = showDialog({ title: 'Settings', body });
       startSettingsSecretTimer();
@@ -1936,7 +2154,7 @@
         setWireDelay(v);
         delayValue.textContent = `${v}ms`;
       });
-      if (!puzzle) {
+      if (!puzzle && !project) {
         body.querySelector('#exportBtn').onclick = exportStateToJson;
         body.querySelector('#importBtn').onclick = chooseImportJsonFile;
         body.querySelector('#resetBtn').onclick = () => {
@@ -1953,11 +2171,35 @@
             },
           });
         };
-      } else {
+      } else if (puzzle) {
         body.querySelector('#showPuzzleTruthTableBtn').onclick = showPuzzleTruthTableWindow;
         body.querySelector('#resetBtn').onclick = () => {
           dlg.close();
           leavePuzzle();
+        };
+      } else {
+        const projectName = body.querySelector('#projectEditorName');
+        const projectDescription = body.querySelector('#projectEditorDescription');
+        const saveDetails = () => saveCurrentProjectDetails(projectName, projectDescription);
+        [projectName, projectDescription].forEach(input => {
+          input.addEventListener('keydown', event => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            saveDetails();
+          });
+        });
+        body.querySelector('#exportProjectBtn').onclick = exportCurrentProject;
+        body.querySelector('#deleteProjectBtn').onclick = () => {
+          const currentProject = getCurrentProject();
+          dlg.close();
+          if (!currentProject) return;
+          showConfirmDialog({
+            title: `Delete "${currentProject.name}"?`,
+            message: 'This permanently deletes this project and its canvas. This cannot be undone.',
+            confirmLabel: 'Delete project',
+            destructive: true,
+            onConfirm: deleteCurrentProject,
+          });
         };
       }
       const originalClose = dlg.close;
@@ -1969,7 +2211,7 @@
           });
           delete window.__lbSecretSettingsHandlers;
         }
-    
+
         resetSecretSidebarTrigger();
         originalClose();
       };
@@ -1991,21 +2233,21 @@
       }
       return e;
     }
-    
+
     function renderMenu() {
       const app = document.getElementById('app');
       const menuRoot = document.getElementById('menuRoot');
-      const editorVisible = state.view === 'sandbox' || state.view === 'puzzle';
+      const editorVisible = state.view === 'sandbox' || state.view === 'puzzle' || state.view === 'project';
       app.classList.toggle('hidden', !editorVisible);
       menuRoot.classList.toggle('hidden', editorVisible);
       if (editorVisible) {
         menuRoot.innerHTML = '';
         return;
       }
-    
+
       if (state.view === 'puzzles') {
         let packsHtml = '';
-    
+
         if (state.puzzlePackLoadStatus === 'loading') {
           packsHtml = '<div class="puzzle-empty">Loading puzzles...</div>';
         } else if (state.puzzlePacks.length === 0) {
@@ -2038,7 +2280,7 @@
                   `;
                 }).join('')
                 : '<div class="puzzle-empty">No Puzzles</div>';
-    
+
               return `
                 <section class="puzzle-section">
                   <div class="puzzle-section-heading">
@@ -2054,7 +2296,7 @@
                 </section>
               `;
             }).join('');
-    
+
             return `
               <div class="puzzle-pack">
                 ${sections}
@@ -2062,12 +2304,12 @@
             `;
           }).join('');
         }
-    
+
         menuRoot.innerHTML = `
           <div class="mode-screen">
             <div class="mode-heading">
               <div>
-                <div class="mode-eyebrow">Logic Builder</div>
+                <div class="mode-eyebrow">Challenge Mode</div>
                 <h2>Puzzles</h2>
               </div>
               <div class="puzzle-heading-actions">
@@ -2085,7 +2327,42 @@
         });
         return;
       }
-    
+
+      if (state.view === 'projects') {
+        const projectCards = state.projects.length
+          ? state.projects.map(project => `
+            <button class="project-card" type="button" data-project-id="${escapeHtml(project.id)}">
+              <strong>${escapeHtml(project.name)}</strong>
+              <span>${escapeHtml(project.description || 'No description')}</span>
+              <small>Last modified ${escapeHtml(formatProjectLastModified(project.lastModified))}</small>
+            </button>
+          `).join('')
+          : '<div class="project-empty">No projects yet. Create one to start building.</div>';
+        menuRoot.innerHTML = `
+          <div class="mode-screen">
+            <div class="mode-heading">
+              <div>
+                <div class="mode-eyebrow">Sandbox mode</div>
+                <h2>Projects</h2>
+              </div>
+              <div class="puzzle-heading-actions">
+                <button class="btn btn-primary" id="newProjectBtn" type="button">New project</button>
+                <button class="btn" id="projectSettingsBtn" type="button">Settings</button>
+                <button class="btn mode-back" id="projectBackBtn" type="button">Back to main Menu</button>
+              </div>
+            </div>
+            <div class="project-list">${projectCards}</div>
+          </div>
+        `;
+        document.getElementById('newProjectBtn').onclick = showCreateProjectDialog;
+        document.getElementById('projectSettingsBtn').onclick = showProjectListSettingsDialog;
+        document.getElementById('projectBackBtn').onclick = showMainMenu;
+        menuRoot.querySelectorAll('.project-card').forEach(button => {
+          button.onclick = () => openProject(button.dataset.projectId);
+        });
+        return;
+      }
+
       menuRoot.innerHTML = `
         <div class="menu-screen">
           <div class="menu-brand">
@@ -2096,12 +2373,12 @@
             <button class="mode-card" id="sandboxModeBtn" type="button">
               <span class="mode-card-label">Play</span>
               <strong>Sandbox Mode</strong>
-              <span>Build and test circuits freely</span>
+              <span>Build circuits out of primitive gates</span>
             </button>
             <button class="mode-card" id="puzzleModeBtn" type="button">
               <span class="mode-card-label">Challenge</span>
               <strong>Puzzle Mode</strong>
-              <span>Complete Challenges by building a circuit</span>
+              <span>Complete challenges with limited inventory</span>
             </button>
           </div>
         </div>
@@ -2109,7 +2386,7 @@
       document.getElementById('sandboxModeBtn').onclick = showSandbox;
       document.getElementById('puzzleModeBtn').onclick = showPuzzleMenu;
     }
-    
+
     function setMobileSidebarOpen(open) {
       const app = document.getElementById('app');
       const toggle = document.getElementById('mobileSidebarToggle');
@@ -2120,16 +2397,16 @@
         toggle.textContent = open ? 'Close blocks' : 'Blocks';
       }
     }
-    
+
     function closeMobileSidebar() {
       if (window.matchMedia('(max-width: 760px)').matches) setMobileSidebarOpen(false);
     }
-    
+
     function renderHeader() {
       const headerBrand = document.getElementById('headerBrand');
       if (headerBrand) {
         headerBrand.classList.add('menu-link');
-        headerBrand.onclick = state.currentPuzzle ? showPuzzleMenu : showMainMenu;
+        headerBrand.onclick = state.currentProjectId ? showProjectsMenu : state.currentPuzzle ? showPuzzleMenu : showMainMenu;
       }
       const headerRight = document.getElementById('headerRight');
       const isEditing = state.editingBlockId !== null;
@@ -2155,15 +2432,49 @@
       const settingsBtn = el('button', 'icon-btn', { title: 'Settings', 'aria-label': 'Settings', onclick: showSettings });
       settingsBtn.innerHTML = ICONS.settings;
       headerRight.appendChild(settingsBtn);
-    
+
       const sidebarHeader = document.getElementById('sidebarHeaderIcon');
       sidebarHeader.innerHTML = ICONS.boxes + '<h2>Blocks</h2>';
       sidebarHeader.classList.remove('secret-ready');
       sidebarHeader.style.cursor = '';
       sidebarHeader.title = 'Blocks';
       sidebarHeader.onclick = null;
+
+      const searchContainer = document.getElementById('sidebarSearchContainer');
+      if (searchContainer) {
+        searchContainer.innerHTML = '';
+        const searchInput = el('input', 'sidebar-search-input', {
+          type: 'search',
+          placeholder: 'Search blocks',
+          'aria-label': 'Search blocks',
+          value: state.sidebarSearch,
+        });
+        searchInput.addEventListener('input', () => {
+          state.sidebarSearch = searchInput.value.trim().toLowerCase();
+          renderSidebar();
+          const nextInput = document.querySelector('.sidebar-search-input');
+          if (nextInput) {
+            nextInput.focus();
+            nextInput.setSelectionRange(nextInput.value.length, nextInput.value.length);
+          }
+        });
+        searchContainer.appendChild(searchInput);
+      }
     }
-    
+
+    function definitionUsesReverseWire(def, allDefs, visiting) {
+      if (!def) return false;
+      if (visiting.has(def.id)) return false;
+      const nextVisiting = new Set(visiting);
+      nextVisiting.add(def.id);
+      return def.nodes.some(node => {
+        if (node.kind === 'WIRE_REVERSE') return true;
+        if (node.kind !== 'CUSTOM') return false;
+        const nestedDef = allDefs.find(candidate => candidate.id === node.defId);
+        return nestedDef ? definitionUsesReverseWire(nestedDef, allDefs, nextVisiting) : false;
+      });
+    }
+
     function renderSidebar() {
       const list = document.getElementById('sidebarList');
       list.innerHTML = '';
@@ -2177,7 +2488,8 @@
         XNOR: { description: '¬(a ⊕ b) → c', inCount: 2 },
       };
       const puzzleBlocks = state.currentPuzzle ? Object.keys(state.currentPuzzle.blockInventory) : null;
-      const blockKinds = puzzleBlocks || ['AND', 'NOT'];
+      const project = getCurrentProject();
+      const blockKinds = puzzleBlocks || (project ? project.availableGates : ['AND', 'NOT']);
       const builtins = blockKinds.map(kind => ({
         kind,
         label: kind,
@@ -2185,10 +2497,23 @@
         inCount: gateDefinitions[kind].inCount,
         outCount: 1,
       }));
-      if (!state.currentPuzzle && state.secretWireUnlocked) {
-        builtins.push({ kind: 'WIRE_REVERSE', label: 'R-Wire', description: 'right → left', inCount: 1, outCount: 1 });
-      }
-      builtins.forEach(item => {
+      const reverseWireUsed = state.nodes.some(node => node.kind === 'WIRE_REVERSE')
+        || state.customBlocks.some(def => definitionUsesReverseWire(def, state.customBlocks, new Set()));
+      const reverseWireVisible = !state.currentPuzzle && (
+        state.secretWireUnlocked || reverseWireUsed
+      );
+      const sidebarItems = reverseWireVisible
+        ? [{
+          kind: 'WIRE_REVERSE',
+          label: 'R-Wire',
+          description: 'right → left',
+          inCount: 1,
+          outCount: 1,
+        }, ...builtins]
+        : builtins;
+      sidebarItems.forEach(item => {
+        if (state.sidebarSearch
+          && !`${item.label} ${item.description}`.toLowerCase().includes(state.sidebarSearch)) return;
         const remaining = state.currentPuzzle ? getPuzzleBlockRemaining(item.kind) : Infinity;
         list.appendChild(renderSidebarItem({
           label: item.label,
@@ -2211,6 +2536,8 @@
         }));
       });
       state.customBlocks.forEach(b => {
+        if (state.sidebarSearch
+          && !`${b.name} ${b.description || ''}`.toLowerCase().includes(state.sidebarSearch)) return;
         const isEditingThis = state.editingBlockId === b.id;
         const autoDesc = `${b.inputPins.length} in · ${b.outputPins.length} out`;
         list.appendChild(renderSidebarItem({
@@ -2237,7 +2564,7 @@
         }));
       });
     }
-    
+
     function renderSidebarItem(opts) {
       const item = el('div', 'sidebar-item'
         + (opts.isBeingEdited ? ' being-edited' : '')
@@ -2247,17 +2574,17 @@
         if (state.selectionMode || opts.disabled) { e.preventDefault(); return; }
         opts.onDragStart(e);
       });
-    
+
       const grip = el('div', 'grip');
       grip.innerHTML = ICONS.grip;
       item.appendChild(grip);
-    
+
       if (opts.icon) {
         const icon = el('div', 'block-icon');
         icon.innerHTML = opts.icon;
         item.appendChild(icon);
       }
-    
+
       const labelBtn = el('button', 'sidebar-item-label');
       labelBtn.onclick = () => {
         if (state.selectionMode) return;
@@ -2288,11 +2615,11 @@
         count.textContent = opts.inventoryCount === Infinity ? '∞' : String(opts.inventoryCount);
         item.appendChild(count);
       }
-    
+
       const badges = el('div', 'pin-badges');
       badges.innerHTML = `<span class="pin-badge pin-badge-in">${opts.inCount} in</span><span class="pin-badge pin-badge-out">${opts.outCount} out</span>`;
       item.appendChild(badges);
-    
+
       if (opts.isCustom) {
         const actions = el('div', 'sidebar-actions');
         const renameBtn = el('button', 'action-btn rename', { title: 'Rename' });
@@ -2318,10 +2645,10 @@
         actions.appendChild(delBtn);
         item.appendChild(actions);
       }
-    
+
       return item;
     }
-    
+
     function startNameEdit(item, opts) {
       const labelBtn = item.querySelector('.sidebar-item-label');
       const oldHTML = labelBtn.innerHTML;
@@ -2342,7 +2669,7 @@
       input.addEventListener('keydown', (e) => { if (e.key === 'Enter') commit(); else if (e.key === 'Escape') cancel(); });
       input.addEventListener('blur', commit);
     }
-    
+
     function startDescEdit(item, opts, descDiv) {
       const labelBtn = item.querySelector('.sidebar-item-label');
       item.classList.add('editing');
@@ -2359,14 +2686,14 @@
       input.addEventListener('keydown', (e) => { if (e.key === 'Enter') commit(); else if (e.key === 'Escape') cancel(); });
       input.addEventListener('blur', commit);
     }
-    
+
     function renderBottomBar() {
       const stats = document.getElementById('bottomStats');
       const actions = document.getElementById('bottomActions');
       const isEditing = state.editingBlockId !== null;
       const isSelecting = state.selectionMode;
       const editingBlock = state.customBlocks.find(b => b.id === state.editingBlockId);
-    
+
       stats.innerHTML = '';
       const blocksStat = el('span', 'stat');
       blocksStat.innerHTML = `<span class="num">${state.nodes.length}</span> blocks`;
@@ -2380,18 +2707,24 @@
         const puzzleStat = el('span', 'stat puzzle-status-label');
         puzzleStat.textContent = `${state.currentPuzzle.puzzle.title} · ${state.puzzleProgress[state.currentPuzzleId] ? 'Solved' : 'Not solved'}`;
         stats.appendChild(puzzleStat);
-      } else if (isEditing) {
+      } else if (state.currentProjectId) {
+        stats.appendChild(el('div', 'divider'));
+        const projectStat = el('span', 'stat project-status-label');
+        projectStat.textContent = getCurrentProject() ? getCurrentProject().name : '';
+        stats.appendChild(projectStat);
+      }
+      if (!state.currentPuzzle && isEditing) {
         stats.appendChild(el('div', 'divider'));
         const editStat = el('span', 'stat editing-label');
         editStat.textContent = 'editing ' + (editingBlock ? editingBlock.name : 'block');
         stats.appendChild(editStat);
-      } else if (isSelecting) {
+      } else if (!state.currentPuzzle && isSelecting) {
         stats.appendChild(el('div', 'divider'));
         const selectionStat = el('span', 'stat editing-label');
         selectionStat.textContent = 'selecting block';
         stats.appendChild(selectionStat);
       }
-    
+
       actions.innerHTML = '';
       if (isEditing) {
         const cancelBtn = el('button', 'btn', { title: 'Discard changes and exit edit mode' });
@@ -2509,12 +2842,12 @@
     }
     /* ============================================================ CANVAS RENDERING */
     let prevHadNodes = false;
-    
+
     function renderSelectionOverlay() {
       const viewport = document.getElementById('viewport');
       const world = document.getElementById('world');
       if (!viewport || !world) return;
-    
+
       let overlay = document.getElementById('selectionOverlay');
       if (!overlay) {
         overlay = el('div', null, { id: 'selectionOverlay' });
@@ -2525,38 +2858,38 @@
         overlay.style.overflow = 'hidden';
         world.appendChild(overlay);
       }
-    
+
       overlay.innerHTML = '';
       if (!state.selectionMode) {
         overlay.style.display = 'none';
         return;
       }
-    
+
       overlay.style.display = 'block';
       overlay.style.background = 'rgba(0, 0, 0, 0.55)';
-    
+
       if (!state.selectionRect) {
         return;
       }
-    
+
       const rect = state.selectionRect;
       const overlayLeft = rect.x;
       const overlayTop = rect.y;
       const overlayWidth = rect.w;
       const overlayHeight = rect.h;
-    
+
       overlay.style.background = 'transparent';
-    
+
       const worldRight = Math.max(0, overlayLeft + overlayWidth);
       const worldBottom = Math.max(0, overlayTop + overlayHeight);
-    
+
       const panels = [
         { left: 0, top: 0, width: '100%', height: `${Math.max(0, overlayTop)}px` },
         { left: 0, top: `${Math.max(0, overlayTop)}px`, width: `${Math.max(0, overlayLeft)}px`, height: `${Math.max(0, overlayHeight)}px` },
         { left: `${Math.max(0, worldRight)}px`, top: `${Math.max(0, overlayTop)}px`, width: `calc(100% - ${Math.max(0, worldRight)}px)`, height: `${Math.max(0, overlayHeight)}px` },
         { left: 0, top: `${Math.max(0, worldBottom)}px`, width: '100%', height: `calc(100% - ${Math.max(0, worldBottom)}px)` },
       ];
-    
+
       panels.forEach(panel => {
         const dark = el('div');
         dark.style.position = 'absolute';
@@ -2568,7 +2901,7 @@
         dark.style.pointerEvents = 'none';
         overlay.appendChild(dark);
       });
-    
+
       const box = el('div');
       box.style.position = 'absolute';
       box.style.left = `${Math.max(0, overlayLeft)}px`;
@@ -2583,12 +2916,12 @@
       box.style.boxSizing = 'border-box';
       overlay.appendChild(box);
     }
-    
+
     function renderCanvas() {
       const viewport = document.getElementById('viewport');
       const hasNodes = state.nodes.length > 0;
       viewport.className = 'lb-canvas-bg ' + (hasNodes ? 'scrollable' : 'fixed');
-    
+
       // Update world wrapper + world size/transform
       let wrapper = document.getElementById('worldWrapper');
       let world = document.getElementById('world');
@@ -2614,21 +2947,31 @@
       world.style.position = 'absolute';
       world.style.top = '0';
       world.style.left = '0';
-    
+
       // Remove existing nodes (but keep the SVG)
       const svg = document.getElementById('wireSvg');
       Array.from(world.children).forEach(c => { if (c !== svg) c.remove(); });
-    
+
       const evalResult = getEvalResult();
       // Render wires and nodes from the same sequential simulation step.
       renderWires(evalResult);
-    
+
+      if (state.editorSelectionRect) {
+        const rect = state.editorSelectionRect;
+        const selection = el('div', 'editor-selection-box');
+        selection.style.left = `${rect.x}px`;
+        selection.style.top = `${rect.y}px`;
+        selection.style.width = `${rect.w}px`;
+        selection.style.height = `${rect.h}px`;
+        world.appendChild(selection);
+      }
+
       // Render nodes
       state.nodes.forEach(n => {
         const nodeEl = renderNode(n, evalResult);
         world.appendChild(nodeEl);
       });
-    
+
       // Empty state
       const emptyState = document.getElementById('emptyState');
       const isEditing = state.editingBlockId !== null;
@@ -2638,20 +2981,20 @@
           ? 'Drag gates from the sidebar to define this block\'s internal logic. Drag pins into empty space to create <span class="hl">toggles</span> (block inputs) and <span class="hl">lamps</span> (block outputs). Hit <span class="hl">Done</span> when finished.'
           : (state.currentPuzzle
             ? 'Drag the available gates from the left sidebar to build your circuit. Add toggles and lamps, then hit <span class="hl">Verify</span> to check it against the truth table.'
-            : 'Drag an <span class="hl">AND</span> or <span class="hl">NOT</span> gate from the left sidebar to get started. Drag output pins into empty space to create lamps; drag input pins into empty space to create toggles. Hit <span class="hl">Build</span> to wrap the whole circuit into a reusable block.')
+            : `Drag ${state.currentProjectId ? 'a gate' : 'an <span class="hl">AND</span> or <span class="hl">NOT</span> gate'} from the left sidebar to get started. Drag output pins into empty space to create lamps; drag input pins into empty space to create toggles. Hit <span class="hl">Build</span> to wrap the whole circuit into a reusable block.`)
         }</div></div>`;
       } else {
         emptyState.classList.add('hidden');
       }
-    
+
       // Pending status
       const pendingStatus = document.getElementById('pendingStatus');
       pendingStatus.textContent = state.pendingFrom ? 'click a target pin or release in empty space · click canvas to cancel' : '';
-    
+
       // Zoom controls
       renderZoomControls();
       renderSelectionOverlay();
-    
+
       // Scroll to middle on first node
       if (hasNodes && !prevHadNodes) {
         requestAnimationFrame(() => {
@@ -2663,14 +3006,14 @@
       }
       if (!hasNodes) prevHadNodes = false;
     }
-    
+
     function renderWires(evalResult) {
       const svg = document.getElementById('wireSvg');
       svg.innerHTML = '';
       evalResult = evalResult || getEvalResult();
       const wireTransit = state.wireTransit;
       const pendingFrom = state.pendingFrom;
-    
+
       state.connections.forEach(c => {
         const from = pinGlobalPos(c.fromNode, c.fromPin, 'output');
         const to = pinGlobalPos(c.toNode, c.toPin, 'input');
@@ -2693,7 +3036,7 @@
         coldPath.setAttribute('fill', 'none');
         g.appendChild(hitPath);
         g.appendChild(coldPath);
-    
+
         g.dataset.connectionId = c.id;
         const visPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         visPath.dataset.wireHot = 'true';
@@ -2707,7 +3050,7 @@
         g.appendChild(visPath);
         svg.appendChild(g);
       });
-    
+
       if (pendingFrom) {
         const start = pinGlobalPos(pendingFrom.nodeId, pendingFrom.pinId, pendingFrom.kind);
         if (start && pendingCursor) {
@@ -2715,7 +3058,10 @@
             ? ((evalResult.nodeOutputs[pendingFrom.nodeId] && evalResult.nodeOutputs[pendingFrom.nodeId][pendingFrom.pinId]) || false)
             : ((evalResult.nodeInputs[pendingFrom.nodeId] && evalResult.nodeInputs[pendingFrom.nodeId][pendingFrom.pinId]) || false);
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-          path.setAttribute('d', wirePath(start, pendingCursor, pendingFrom.nodeId, null));
+          const previewPath = pendingFrom.kind === 'input'
+            ? wirePath(pendingCursor, start, null, pendingFrom.nodeId)
+            : wirePath(start, pendingCursor, pendingFrom.nodeId, null);
+          path.setAttribute('d', previewPath);
           path.setAttribute('stroke', pendingIsPowered ? 'var(--lb-wire-hot)' : 'var(--lb-wire-cold)');
           path.setAttribute('stroke-width', '2.5');
           path.setAttribute('stroke-dasharray', '6 4');
@@ -2725,12 +3071,12 @@
         }
       }
     }
-    
+
     function renderSimulationFrame() {
-      if (state.view !== 'sandbox' && state.view !== 'puzzle') return;
+      if (state.view !== 'sandbox' && state.view !== 'puzzle' && state.view !== 'project') return;
       const world = document.getElementById('world');
       if (!world) return;
-    
+
       const evalResult = getEvalResult();
       const renderedNodes = new Map(
         Array.from(world.querySelectorAll('.node')).map(nodeEl => [nodeEl.dataset.nodeId, nodeEl])
@@ -2740,7 +3086,7 @@
         if (!nodeEl) return;
         const inputs = evalResult.nodeInputs[node.id] || {};
         const outputs = evalResult.nodeOutputs[node.id] || {};
-    
+
         nodeEl.querySelectorAll('.pin-dot').forEach(dot => {
           const powered = Boolean((dot.dataset.pinKind === 'input' ? inputs : outputs)[dot.dataset.pinId]);
           dot.classList.toggle('powered', powered);
@@ -2761,7 +3107,7 @@
           nodeEl.querySelectorAll('path').forEach(path => path.setAttribute('stroke', color));
         }
       });
-    
+
       const connections = new Map(state.connections.map(connection => [connection.id, connection]));
       world.querySelectorAll('#wireSvg [data-connection-id]').forEach(group => {
         const connection = connections.get(group.dataset.connectionId);
@@ -2773,7 +3119,7 @@
           (transit !== undefined ? Boolean(transit) : Boolean(sourceVal)) ? '1' : '0';
       });
     }
-    
+
     function pinGlobalPos(nodeId, pinId, kind) {
       const node = state.nodes.find(n => n.id === nodeId);
       if (!node) return null;
@@ -2793,7 +3139,7 @@
         return inputPinPos(node, idx);
       }
     }
-    
+
     function renderSecretWireNode(node, evalResult) {
       const powered = {
         inputs: evalResult.nodeInputs[node.id] || {},
@@ -2801,12 +3147,12 @@
       };
       const w = nodeWidth(node);
       const h = nodeHeight(node);
-      const nodeEl = el('div', 'node');
+      const nodeEl = el('div', 'node' + (state.selectedNodeIds.has(node.id) ? ' selected' : ''));
       nodeEl.style.left = node.position.x + 'px';
       nodeEl.style.top = node.position.y + 'px';
       nodeEl.style.width = w + 'px';
       nodeEl.dataset.nodeId = node.id;
-    
+
       const body = el('div', 'node-body');
       body.style.width = w + 'px';
       body.style.height = h + 'px';
@@ -2814,7 +3160,7 @@
       body.style.background = 'rgba(17, 24, 39, 0.85)';
       body.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.04) inset';
       body.addEventListener('mousedown', (e) => handleBodyMouseDown(e, node));
-    
+
       const header = el('div', 'node-header');
       header.style.height = HEADER_HEIGHT + 'px';
       const label = el('span', 'label');
@@ -2826,7 +3172,7 @@
       delBtn.addEventListener('mousedown', (e) => e.stopPropagation());
       header.appendChild(delBtn);
       body.appendChild(header);
-    
+
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('viewBox', '0 0 140 42');
       svg.setAttribute('width', '140');
@@ -2834,7 +3180,7 @@
       svg.style.display = 'block';
       svg.style.margin = '0 auto';
       svg.style.padding = '6px 0 12px';
-    
+
       const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       line.setAttribute('d', 'M 12 21 H 128');
       line.setAttribute('stroke', powered.outputs.out ? 'var(--lb-wire-hot)' : 'var(--lb-wire-cold)');
@@ -2851,7 +3197,7 @@
       svg.appendChild(line);
       svg.appendChild(arrow);
       body.appendChild(svg);
-    
+
       const outputDot = el('div', 'pin-dot' + (powered.outputs.out ? ' powered' : ''));
       outputDot.dataset.pin = '1';
       outputDot.dataset.nodeId = node.id;
@@ -2864,7 +3210,7 @@
       outputDot.style.backgroundColor = powered.outputs.out ? 'var(--lb-pin-active)' : 'var(--lb-pin)';
       outputDot.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); onPinMouseDown(e, node.id, node.outputs[0].id, 'output'); });
       outputDot.addEventListener('mouseup', (e) => { e.stopPropagation(); onPinMouseUp(e, node.id, node.outputs[0].id, 'output'); });
-    
+
       const inputDot = el('div', 'pin-dot' + (powered.inputs.in ? ' powered' : ''));
       inputDot.dataset.pin = '1';
       inputDot.dataset.nodeId = node.id;
@@ -2877,18 +3223,18 @@
       inputDot.style.backgroundColor = powered.inputs.in ? 'var(--lb-pin-active)' : 'var(--lb-pin)';
       inputDot.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); onPinMouseDown(e, node.id, node.inputs[0].id, 'input'); });
       inputDot.addEventListener('mouseup', (e) => { e.stopPropagation(); onPinMouseUp(e, node.id, node.inputs[0].id, 'input'); });
-    
+
       nodeEl.appendChild(body);
       nodeEl.appendChild(outputDot);
       nodeEl.appendChild(inputDot);
       return nodeEl;
     }
-    
+
     function renderNode(node, evalResult) {
       if (node.kind === 'WIRE_REVERSE') {
         return renderSecretWireNode(node, evalResult);
       }
-    
+
       const powered = {
         inputs: evalResult.nodeInputs[node.id] || {},
         outputs: evalResult.nodeOutputs[node.id] || {},
@@ -2897,7 +3243,7 @@
       const h = nodeHeight(node);
       const isTerminal = node.kind === 'INPUT' || node.kind === 'OUTPUT';
       const headerH = isTerminal ? TERMINAL_HEADER_HEIGHT : HEADER_HEIGHT;
-    
+
       let headerLabel = '';
       if (['AND', 'NOT', 'NAND', 'NOR', 'OR', 'XOR', 'XNOR'].includes(node.kind)) headerLabel = node.kind;
       else if (node.kind === 'INPUT') headerLabel = 'Toggle';
@@ -2906,18 +3252,20 @@
         const def = state.customBlocks.find(b => b.id === node.defId);
         headerLabel = def ? def.name : (node.name || 'Block');
       }
-    
-      const nodeEl = el('div', 'node' + (draggingOverSidebarNode === node.id ? ' dragging-over-sidebar' : ''));
+
+      const nodeEl = el('div', 'node'
+        + (draggingOverSidebarNode === node.id ? ' dragging-over-sidebar' : '')
+        + (state.selectedNodeIds.has(node.id) ? ' selected' : ''));
       nodeEl.style.left = node.position.x + 'px';
       nodeEl.style.top = node.position.y + 'px';
       nodeEl.style.width = w + 'px';
       nodeEl.dataset.nodeId = node.id;
       if (draggingOverSidebarNode === node.id) nodeEl.style.zIndex = '1000';
-    
+
       const body = el('div', 'node-body');
       body.style.width = w + 'px';
       body.addEventListener('mousedown', (e) => handleBodyMouseDown(e, node));
-    
+
       const header = el('div', 'node-header' + (isTerminal ? ' terminal' : ''));
       header.style.height = headerH + 'px';
       const labelSpan = el('span', 'label');
@@ -2929,13 +3277,13 @@
       delBtn.addEventListener('mousedown', (e) => e.stopPropagation());
       header.appendChild(delBtn);
       body.appendChild(header);
-    
+
       if (node.kind === 'INPUT') {
         body.appendChild(renderToggleBody(node));
       } else if (node.kind === 'OUTPUT') {
         body.appendChild(renderLampBody(powered.inputs['in'] || false));
       }
-    
+
       if (!isTerminal) {
         const pinRows = el('div', null);
         pinRows.style.position = 'relative';
@@ -2944,13 +3292,13 @@
         pinRows.appendChild(renderPinList(node.outputs, 'right', powered.outputs));
         body.appendChild(pinRows);
       }
-    
+
       if (isTerminal) {
         body.appendChild(renderTerminalRename(node, headerLabel));
       }
-    
+
       nodeEl.appendChild(body);
-    
+
       // Pin dots
       if (!isTerminal) {
         nodeEl.appendChild(renderPinDots(node.inputs, 'left', powered.inputs, node.id, HEADER_HEIGHT));
@@ -2962,10 +3310,10 @@
       if (node.kind === 'OUTPUT') {
         nodeEl.appendChild(renderPinDots(node.inputs, 'left', powered.inputs, node.id, TERMINAL_HEADER_HEIGHT, TERMINAL_PIN_Y));
       }
-    
+
       return nodeEl;
     }
-    
+
     function renderPinList(pins, side, poweredMap) {
       const list = el('div', 'pin-list ' + side);
       list.style.height = '100%';
@@ -2982,7 +3330,7 @@
       });
       return list;
     }
-    
+
     function renderPinDots(pins, side, poweredMap, nodeId, headerHeight, pinY) {
       const container = document.createDocumentFragment();
       pins.forEach((p, i) => {
@@ -3013,7 +3361,7 @@
       });
       return container;
     }
-    
+
     function renderToggleBody(node) {
       const on = node.state || false;
       const wrapper = el('div', 'terminal-body');
@@ -3024,7 +3372,7 @@
       wrapper.appendChild(btn);
       return wrapper;
     }
-    
+
     function renderLampBody(powered) {
       const wrapper = el('div', 'terminal-body');
       const body = el('div', 'lamp-body' + (powered ? ' powered' : ''));
@@ -3033,7 +3381,7 @@
       wrapper.appendChild(body);
       return wrapper;
     }
-    
+
     function renderTerminalRename(node, headerLabel) {
       const wrapper = el('div', 'terminal-rename');
       const btn = el('button', 'rename-display');
@@ -3044,7 +3392,7 @@
       wrapper.appendChild(btn);
       return wrapper;
     }
-    
+
     function startTerminalRename(wrapper, node, headerLabel) {
       wrapper.innerHTML = '';
       const row = el('div', 'rename-row');
@@ -3066,7 +3414,7 @@
       cancelBtn.onclick = cancel;
       input.addEventListener('blur', commit);
     }
-    
+
     function renderZoomControls() {
       const zc = document.getElementById('zoomControls');
       zc.innerHTML = '';
@@ -3087,7 +3435,7 @@
       zc.appendChild(inBtn);
       zc.appendChild(resetBtn);
     }
-    
+
     function handleZoomReset() {
       setZoom(1);
       const vp = document.getElementById('viewport');
@@ -3101,40 +3449,181 @@
     /* ============================================================ EVENT HANDLERS */
     let pendingCursor = null;
     let draggingOverSidebarNode = null;
-    
+    let rightSelectionInProgress = false;
+    let rightSelectionMoved = false;
+    let suppressEditorContextMenuUntil = 0;
+
     function screenToWorld(clientX, clientY) {
       const world = document.getElementById('world');
       if (!world) return { x: 0, y: 0 };
       const r = world.getBoundingClientRect();
       return { x: (clientX - r.left) / state.zoom, y: (clientY - r.top) / state.zoom };
     }
-    
+
     function isOverSidebar(clientX, clientY) {
       const sb = document.getElementById('sidebar');
       if (!sb) return false;
       const r = sb.getBoundingClientRect();
       return clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom;
     }
-    
+
     function onPinMouseDown(e, nodeId, pinId, kind) {
       e.stopPropagation();
       startPending(nodeId, pinId, kind);
     }
-    
+
     function onPinMouseUp(e, nodeId, pinId, kind) {
       e.stopPropagation();
       completePending(nodeId, pinId, kind);
     }
-    
+
     let lastCursor = { x: 0, y: 0 };
-    
+
+    function closeEditorContextMenu() {
+      const menu = document.getElementById('editorContextMenu');
+      if (menu) {
+        menu.classList.add('hidden');
+        menu.innerHTML = '';
+      }
+    }
+
+    function showEditorContextMenu(x, y, items) {
+      const menu = document.getElementById('editorContextMenu');
+      if (!menu) return;
+      menu.innerHTML = '';
+      items.forEach(item => {
+        if (item.divider) {
+          menu.appendChild(document.createElement('div')).className = 'editor-context-menu-divider';
+          return;
+        }
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.innerHTML = `${item.icon ? `<span class="editor-context-menu-icon">${item.icon}</span>` : ''}<span>${escapeHtml(item.label)}</span>`;
+        if (item.destructive) button.className = 'editor-context-destructive';
+        button.onclick = () => {
+          closeEditorContextMenu();
+          item.action();
+        };
+        menu.appendChild(button);
+      });
+      menu.classList.remove('hidden');
+      const left = Math.max(8, Math.min(window.innerWidth - 220, x));
+      const top = Math.max(8, Math.min(window.innerHeight - 280, y));
+      menu.style.left = `${left}px`;
+      menu.style.top = `${top}px`;
+    }
+
+    function showNodeContextMenu(x, y) {
+      showEditorContextMenu(x, y, [
+        { label: 'Copy', icon: ICONS.copy, action: copySelectedNodes },
+        { label: 'Delete', icon: ICONS.trash, action: deleteSelectedNodes },
+      ]);
+    }
+
+    function pasteTemplateAt(kind, position, defId) {
+      addNodeFromTemplate(kind, { x: position.x, y: position.y }, defId);
+    }
+
+    function showCanvasContextMenu(x, y) {
+      const groups = [];
+      if (state.editorClipboard) {
+        groups.push([{
+          label: 'Paste',
+          icon: ICONS.clipboard,
+          action: () => pasteClipboardAt(state.editorCursorWorld),
+        }]);
+      }
+      groups.push([
+        { label: 'Toggle', icon: ICONS.toggle, action: () => pasteTemplateAt('INPUT', state.editorCursorWorld) },
+        { label: 'Lamp', icon: ICONS.lamp, action: () => pasteTemplateAt('OUTPUT', state.editorCursorWorld) },
+      ]);
+
+      const puzzleKinds = state.currentPuzzle ? Object.keys(state.currentPuzzle.blockInventory) : null;
+      const project = getCurrentProject();
+      const gateKinds = puzzleKinds || (project ? project.availableGates : ['AND', 'NOT']);
+      const gateItems = [];
+      gateKinds.forEach(kind => {
+        gateItems.push({
+          label: kind,
+          action: () => pasteTemplateAt(kind, state.editorCursorWorld),
+        });
+      });
+      if (!state.currentPuzzle && (state.secretWireUnlocked || state.nodes.some(node => node.kind === 'WIRE_REVERSE'))) {
+        gateItems.push({
+          label: 'R-Wire',
+          action: () => pasteTemplateAt('WIRE_REVERSE', state.editorCursorWorld),
+        });
+      }
+      if (gateItems.length) groups.push(gateItems);
+
+      const customBlockItems = [];
+      state.customBlocks.forEach(block => {
+        customBlockItems.push({
+          label: block.name,
+          icon: ICONS.cpu,
+          action: () => pasteTemplateAt('CUSTOM', state.editorCursorWorld, block.id),
+        });
+      });
+      if (customBlockItems.length) groups.push(customBlockItems);
+
+      const items = [];
+      groups.forEach((group, index) => {
+        if (index > 0) items.push({ divider: true });
+        items.push(...group);
+      });
+      showEditorContextMenu(x, y, items);
+    }
+
     function setupCanvasEvents() {
       const viewport = document.getElementById('viewport');
       viewport.addEventListener('pointerdown', closeMobileSidebar);
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeMobileSidebar();
+        if (e.key === 'Escape') {
+          closeMobileSidebar();
+          closeEditorContextMenu();
+          state.selectedNodeIds = new Set();
+          state.editorSelectionRect = null;
+          notify();
+        }
+        const target = e.target;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+          e.preventDefault();
+          copySelectedNodes();
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+          e.preventDefault();
+          pasteClipboardAt(state.editorCursorWorld);
+        } else if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          deleteSelectedNodes();
+        }
       });
-    
+      document.addEventListener('mousemove', (e) => {
+        if (document.getElementById('world')) {
+          state.editorCursorWorld = screenToWorld(e.clientX, e.clientY);
+        }
+      });
+      document.addEventListener('mousedown', (e) => {
+        if (!e.target.closest('#editorContextMenu')) closeEditorContextMenu();
+      });
+      viewport.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        if (rightSelectionInProgress || Date.now() < suppressEditorContextMenuUntil) {
+          closeEditorContextMenu();
+          return;
+        }
+        const nodeElement = e.target.closest('.node');
+        if (nodeElement) {
+          const nodeId = nodeElement.dataset.nodeId;
+          if (!state.selectedNodeIds.has(nodeId)) state.selectedNodeIds = new Set([nodeId]);
+          notify();
+          showNodeContextMenu(e.clientX, e.clientY);
+        } else {
+          state.editorCursorWorld = screenToWorld(e.clientX, e.clientY);
+          showCanvasContextMenu(e.clientX, e.clientY);
+        }
+      });
+
       // Drag-and-drop from sidebar
       viewport.addEventListener('dragover', (e) => {
         if (state.selectionMode) return;
@@ -3153,9 +3642,10 @@
           addNodeFromTemplate(data.kind, { x: w.x - 70, y: w.y - 30 }, data.defId);
         } catch (err) {}
       });
-    
-      // Click empty canvas to cancel pending
+
+      // Left-drag pans empty canvas; right-drag creates a selection box.
       viewport.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.node')) return;
         if (state.selectionMode) {
           e.preventDefault();
           e.stopPropagation();
@@ -3188,9 +3678,65 @@
           window.addEventListener('mouseup', upHandler);
           return;
         }
-        if (state.pendingFrom) clearPending();
+        closeEditorContextMenu();
+        if (e.button === 2) {
+          e.preventDefault();
+          suppressEditorContextMenuUntil = 0;
+          rightSelectionInProgress = true;
+          rightSelectionMoved = false;
+          const startWorld = screenToWorld(e.clientX, e.clientY);
+          state.editorSelectionRect = { x: startWorld.x, y: startWorld.y, w: 1, h: 1 };
+          const move = (ev) => {
+            if (Math.abs(ev.clientX - e.clientX) + Math.abs(ev.clientY - e.clientY) > 3) {
+              rightSelectionMoved = true;
+            }
+            const current = screenToWorld(ev.clientX, ev.clientY);
+            state.editorSelectionRect = normalizeRect(startWorld.x, startWorld.y, current.x, current.y);
+            notify();
+          };
+          const up = () => {
+            window.removeEventListener('mousemove', move);
+            window.removeEventListener('mouseup', up);
+            rightSelectionInProgress = false;
+            if (rightSelectionMoved) suppressEditorContextMenuUntil = Date.now() + 750;
+            const rect = state.editorSelectionRect;
+            if (rect) {
+              state.selectedNodeIds = new Set(state.nodes
+                .filter(node => rectIntersectsNode(node, rect))
+                .map(node => node.id));
+            }
+            state.editorSelectionRect = null;
+            notify();
+          };
+          window.addEventListener('mousemove', move);
+          window.addEventListener('mouseup', up);
+          return;
+        }
+        if (e.button === 0) {
+          state.selectedNodeIds = new Set();
+          notify();
+          if (state.pendingFrom) clearPending();
+          const startX = e.clientX;
+          const startY = e.clientY;
+          const startScrollLeft = viewport.scrollLeft;
+          const startScrollTop = viewport.scrollTop;
+          const move = (ev) => {
+            const dx = ev.clientX - startX;
+            const dy = ev.clientY - startY;
+            if (Math.abs(dx) + Math.abs(dy) > 2) {
+              viewport.scrollLeft = startScrollLeft - dx;
+              viewport.scrollTop = startScrollTop - dy;
+            }
+          };
+          const up = () => {
+            window.removeEventListener('mousemove', move);
+            window.removeEventListener('mouseup', up);
+          };
+          window.addEventListener('mousemove', move);
+          window.addEventListener('mouseup', up);
+        }
       });
-    
+
       // Ctrl+scroll to zoom
       viewport.addEventListener('wheel', (e) => {
         if (!(e.ctrlKey || e.metaKey)) return;
@@ -3199,15 +3745,29 @@
         setZoom(state.zoom * (1 + delta));
       }, { passive: false });
     }
-    
+
     function handleBodyMouseDown(e, node) {
       if (state.selectionMode) return;
       // Don't start drag if clicking on a pin or interactive element
       if (e.target.closest('[data-pin]')) return;
       if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
       e.preventDefault();
+      if (e.button === 2) return;
+      if (e.ctrlKey || e.metaKey) {
+        const next = new Set(state.selectedNodeIds);
+        if (next.has(node.id)) next.delete(node.id);
+        else next.add(node.id);
+        state.selectedNodeIds = next;
+      } else if (!state.selectedNodeIds.has(node.id)) {
+        state.selectedNodeIds = new Set([node.id]);
+      }
+      notify();
       const start = { startX: e.clientX, startY: e.clientY, nodeX: node.position.x, nodeY: node.position.y };
-    
+      const movingIds = new Set(state.selectedNodeIds);
+      const selectedStartPositions = new Map(state.nodes
+        .filter(n => movingIds.has(n.id))
+        .map(n => [n.id, { ...n.position }]));
+
       function onMove(ev) {
         const dx = (ev.clientX - start.startX) / state.zoom;
         const dy = (ev.clientY - start.startY) / state.zoom;
@@ -3217,7 +3777,17 @@
           renderCanvas();
         }
         if (!overSidebar) {
-          moveNode(node.id, { x: start.nodeX + dx, y: start.nodeY + dy });
+          if (movingIds.size > 1) {
+            state.nodes = state.nodes.map(n => {
+              const startPosition = selectedStartPositions.get(n.id);
+              return startPosition
+                ? { ...n, position: { x: startPosition.x + dx, y: startPosition.y + dy } }
+                : n;
+            });
+            notify();
+          } else {
+            moveNode(node.id, { x: start.nodeX + dx, y: start.nodeY + dy });
+          }
         }
       }
       function onUp(ev) {
@@ -3232,7 +3802,7 @@
       window.addEventListener('mousemove', onMove);
       window.addEventListener('mouseup', onUp);
     }
-    
+
     function setupPendingWireTracking() {
       // This is set up once; it tracks mouse moves when pendingFrom is active
       window.addEventListener('mousemove', (e) => {
@@ -3267,7 +3837,7 @@
     /* ============================================================ MAIN RENDER */
     function renderAll() {
       renderMenu();
-      if (state.view !== 'sandbox' && state.view !== 'puzzle') return;
+      if (state.view !== 'sandbox' && state.view !== 'puzzle' && state.view !== 'project') return;
       renderHeader();
       renderSidebar();
       renderBottomBar();
@@ -3275,7 +3845,7 @@
     }
     /* ============================================================ WIRE DELAY RAF LOOP */
     let rafId = null;
-    
+
     function startWireDelayLoop() {
       if (rafId !== null) cancelAnimationFrame(rafId);
       if (state.wireDelay <= 0) return;
@@ -3295,6 +3865,10 @@
         savePuzzleCanvas();
         return;
       }
+      if (state.view === 'project' && state.currentProjectId) {
+        saveCurrentProject();
+        return;
+      }
       const data = {
         nodes: state.nodes,
         connections: state.connections,
@@ -3306,7 +3880,7 @@
         showToast('Save failed', 'Your sandbox could not be saved to local storage.', 'toast-error');
       }
     }
-    
+
     function loadStateFromLocalStorage() {
       let raw;
       try {
@@ -3326,6 +3900,433 @@
         }
       } catch (err) {}
     }
+    /* ============================================================ PROJECTS */
+    const PROJECTS_STORAGE_KEY = 'logicBuilderProjects';
+    const PROJECT_GATE_KINDS = ['AND', 'NAND', 'NOR', 'OR', 'XOR', 'XNOR', 'NOT'];
+
+    function getCurrentProject() {
+      return state.projects.find(project => project.id === state.currentProjectId) || null;
+    }
+
+    function formatProjectLastModified(timestamp) {
+      const date = new Date(Number.isFinite(timestamp) ? timestamp : Date.now());
+      return date.toLocaleString();
+    }
+
+    function persistProjects() {
+      try {
+        localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(state.projects));
+        return true;
+      } catch (error) {
+        showToast('Projects save failed', 'Your projects could not be saved to local storage.', 'toast-error');
+        return false;
+      }
+    }
+
+    function loadProjects() {
+      let raw;
+      try {
+        raw = localStorage.getItem(PROJECTS_STORAGE_KEY);
+      } catch (error) {
+        showToast('Projects unavailable', 'Local storage could not be accessed.', 'toast-error');
+        return;
+      }
+      if (!raw) return;
+      try {
+        const saved = JSON.parse(raw);
+        if (!Array.isArray(saved)) throw new Error('Invalid projects save');
+        state.projects = saved.filter(project =>
+          project
+          && typeof project.id === 'string'
+          && typeof project.name === 'string'
+          && Array.isArray(project.availableGates)
+          && Array.isArray(project.nodes)
+          && Array.isArray(project.connections)
+          && Array.isArray(project.customBlocks)
+        ).map(project => ({
+          ...project,
+          description: typeof project.description === 'string' ? project.description : '',
+          availableGates: project.availableGates.filter(kind => PROJECT_GATE_KINDS.includes(kind)),
+          zoom: Number.isFinite(project.zoom) ? project.zoom : 1,
+          lastModified: Number.isFinite(project.lastModified)
+            ? project.lastModified
+            : Number.isFinite(project.createdAt) ? project.createdAt : Date.now(),
+        }));
+        if (state.projects.length !== saved.length) {
+          showToast('Some projects could not be loaded', 'Invalid project entries were skipped.', 'toast-error');
+        }
+      } catch (error) {
+        showToast('Projects save invalid', 'Saved projects could not be loaded.', 'toast-error');
+      }
+    }
+
+    function saveCurrentProject() {
+      const project = getCurrentProject();
+      if (!project) return;
+      const changed = project.nodes !== state.nodes
+        || project.connections !== state.connections
+        || project.customBlocks !== state.customBlocks
+        || project.zoom !== state.zoom;
+      if (!changed) return;
+      state.projects = state.projects.map(item => item.id === project.id ? {
+        ...item,
+        nodes: state.nodes,
+        connections: state.connections,
+        customBlocks: state.customBlocks,
+        zoom: state.zoom,
+        lastModified: Date.now(),
+      } : item);
+      persistProjects();
+    }
+
+    function showProjectsMenu() {
+      if (state.currentPuzzle) leavePuzzle(false);
+      if (state.currentProjectId) saveCurrentProject();
+      state.currentProjectId = null;
+      state.view = 'projects';
+      closeAllDialogs();
+      notify();
+    }
+
+    function openProject(id) {
+      const project = state.projects.find(item => item.id === id);
+      if (!project) {
+        showToast('Project unavailable', 'This project could not be found.', 'toast-error');
+        return;
+      }
+      state.currentProjectId = id;
+      state.currentPuzzle = null;
+      state.currentPuzzleId = null;
+      state.nodes = project.nodes;
+      state.connections = project.connections;
+      state.customBlocks = project.customBlocks;
+      state.zoom = project.zoom;
+      state.pendingFrom = null;
+      state.editingBlockId = null;
+      state.stashedNodes = [];
+      state.stashedConnections = [];
+      state.selectionMode = false;
+      state.selectionRect = null;
+      state.wireTransit = {};
+      wireInternals.clear();
+      state.view = 'project';
+      notify();
+    }
+
+    function showCreateProjectDialog() {
+      const body = document.createElement('div');
+      body.innerHTML = `
+        <div class="form-group">
+          <label class="form-label" for="projectNameInput">Project name</label>
+          <input class="form-input" id="projectNameInput" maxlength="80" placeholder="My project">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="projectDescriptionInput">Description</label>
+          <textarea class="form-input project-description-input" id="projectDescriptionInput" maxlength="500" placeholder="What are you building?"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="projectGatePreset">Starting gates</label>
+          <select class="form-input" id="projectGatePreset">
+            <option value="basic">Basic (AND, NOT)</option>
+            <option value="common">Common (AND, OR, NOT)</option>
+            <option value="nand">NAND gate only</option>
+            <option value="all">All seven gates</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="project-gate-options hidden" id="projectGateOptions"></div>
+        <div class="dialog-actions">
+          <button class="btn btn-sm" id="createProjectCancel">Cancel</button>
+          <button class="btn btn-primary" id="createProjectConfirm">Create project</button>
+        </div>
+      `;
+      const dlg = showDialog({ title: 'New project', body, maxWidth: 'medium' });
+      const preset = body.querySelector('#projectGatePreset');
+      const customOptions = body.querySelector('#projectGateOptions');
+      customOptions.innerHTML = PROJECT_GATE_KINDS.map(kind =>
+        `<label><input type="checkbox" value="${kind}" ${['AND', 'NOT'].includes(kind) ? 'checked' : ''}> ${kind}</label>`
+      ).join('');
+      const updateGateSelection = () => {
+        customOptions.classList.toggle('hidden', preset.value !== 'custom');
+      };
+      preset.addEventListener('change', updateGateSelection);
+      updateGateSelection();
+      body.querySelector('#createProjectCancel').onclick = () => dlg.close();
+      body.querySelector('#createProjectConfirm').onclick = () => {
+        const name = body.querySelector('#projectNameInput').value.trim();
+        if (!name) {
+          showToast('Project name required', 'Enter a name for your project.', 'toast-error');
+          body.querySelector('#projectNameInput').focus();
+          return;
+        }
+        const presets = {
+          basic: ['AND', 'NOT'],
+          common: ['AND', 'OR', 'NOT'],
+          nand: ['NAND'],
+          all: PROJECT_GATE_KINDS,
+        };
+        const availableGates = preset.value === 'custom'
+          ? Array.from(customOptions.querySelectorAll('input:checked')).map(input => input.value)
+          : presets[preset.value];
+        if (availableGates.length === 0) {
+          showToast('Choose a starting gate', 'Select at least one gate for this project.', 'toast-error');
+          return;
+        }
+        const now = Date.now();
+        const project = {
+          id: uid('project'),
+          name,
+          description: body.querySelector('#projectDescriptionInput').value.trim(),
+          availableGates,
+          nodes: [],
+          connections: [],
+          customBlocks: [],
+          zoom: 1,
+          createdAt: now,
+          lastModified: now,
+        };
+        state.projects = [...state.projects, project];
+        persistProjects();
+        dlg.close();
+        openProject(project.id);
+      };
+      setTimeout(() => body.querySelector('#projectNameInput').focus(), 0);
+    }
+
+    function saveCurrentProjectDetails(nameInput, descriptionInput) {
+      const project = getCurrentProject();
+      if (!project) return false;
+      const name = nameInput.value.trim();
+      if (!name) {
+        showToast('Project name required', 'Enter a name for your project.', 'toast-error');
+        nameInput.focus();
+        return false;
+      }
+      const previousProjects = state.projects;
+      state.projects = state.projects.map(item => item.id === project.id ? {
+        ...item,
+        name,
+        description: descriptionInput.value.trim(),
+        lastModified: Date.now(),
+      } : item);
+      if (!persistProjects()) {
+        state.projects = previousProjects;
+        nameInput.value = project.name;
+        descriptionInput.value = project.description;
+        return false;
+      }
+      notify();
+      showToast('Project saved', 'Project information was updated.');
+      return true;
+    }
+
+    function isValidImportedProject(project) {
+      return project
+        && typeof project === 'object'
+        && typeof project.id === 'string'
+        && project.id.trim()
+        && typeof project.name === 'string'
+        && project.name.trim()
+        && typeof project.description === 'string'
+        && Array.isArray(project.availableGates)
+        && project.availableGates.every(kind => PROJECT_GATE_KINDS.includes(kind))
+        && Array.isArray(project.nodes)
+        && Array.isArray(project.connections)
+        && Array.isArray(project.customBlocks);
+    }
+
+    function importProjectsFromJson(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        let data;
+        try {
+          data = JSON.parse(String(reader.result));
+        } catch (error) {
+          showToast('Import failed', 'Choose a valid Logic Builder projects JSON file.', 'toast-error');
+          return;
+        }
+        if (!data
+          || data.format !== 'logic-builder-projects'
+          || data.version !== 1
+          || !Array.isArray(data.projects)
+          || !data.projects.every(isValidImportedProject)) {
+          showToast('Import failed', 'Choose a valid Logic Builder projects JSON file.', 'toast-error');
+          return;
+        }
+
+        const importedProjects = data.projects.map(project => {
+          const importedAt = Date.now();
+          return {
+            ...project,
+            availableGates: [...new Set(project.availableGates)],
+            zoom: Number.isFinite(project.zoom) ? Math.max(0.25, Math.min(2.5, project.zoom)) : 1,
+            createdAt: Number.isFinite(project.createdAt) ? project.createdAt : importedAt,
+            lastModified: Number.isFinite(project.lastModified) ? project.lastModified : importedAt,
+          };
+        });
+        showProjectImportOptions(importedProjects);
+      };
+      reader.onerror = () => {
+        showToast('Import failed', 'The selected projects file could not be read.', 'toast-error');
+      };
+      reader.readAsText(file);
+    }
+
+    function showProjectImportOptions(importedProjects) {
+      const body = document.createElement('div');
+      body.innerHTML = `
+        <p>Projects with IDs that already exist locally will be kept unless you choose to overwrite them.</p>
+        <label class="puzzle-save-option">
+          <input id="overwriteImportedProjects" type="checkbox">
+          Overwrite existing projects with matching IDs
+        </label>
+        <div class="dialog-actions">
+          <button class="btn btn-sm" id="cancelProjectImport">Cancel</button>
+          <button class="btn btn-primary" id="confirmProjectImport">Import projects</button>
+        </div>
+      `;
+      const dlg = showDialog({ title: 'Import projects', body, maxWidth: 'medium' });
+      body.querySelector('#cancelProjectImport').onclick = () => dlg.close();
+      body.querySelector('#confirmProjectImport').onclick = () => {
+        const overwriteMatching = body.querySelector('#overwriteImportedProjects').checked;
+        dlg.close();
+        applyImportedProjects(importedProjects, overwriteMatching);
+      };
+    }
+
+    function applyImportedProjects(importedProjects, overwriteMatching) {
+      const uniqueProjects = new Map(importedProjects.map(project => [project.id, project]));
+      const nextProjects = [...state.projects];
+      const projectIndexes = new Map(nextProjects.map((project, index) => [project.id, index]));
+      let added = 0;
+      let overwritten = 0;
+      let skipped = 0;
+
+      uniqueProjects.forEach(project => {
+        if (projectIndexes.has(project.id)) {
+          if (overwriteMatching) {
+            nextProjects[projectIndexes.get(project.id)] = project;
+            overwritten += 1;
+          } else {
+            skipped += 1;
+          }
+          return;
+        }
+        projectIndexes.set(project.id, nextProjects.length);
+        nextProjects.push(project);
+        added += 1;
+      });
+
+      const previousProjects = state.projects;
+      state.projects = nextProjects;
+      if (!persistProjects()) {
+        state.projects = previousProjects;
+        return;
+      }
+      notify();
+      if (added === 0 && overwritten === 0) {
+        showToast('No projects imported', `${skipped} matching project(s) were kept unchanged.`);
+        return;
+      }
+      showToast('Projects imported', `${added} added, ${overwritten} overwritten, ${skipped} matching project(s) kept unchanged.`);
+    }
+
+    function chooseProjectImportFile() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json,.json';
+      input.style.display = 'none';
+      input.addEventListener('change', () => {
+        importProjectsFromJson(input.files && input.files[0]);
+      });
+      document.body.appendChild(input);
+      input.click();
+      input.remove();
+    }
+
+    function deleteCurrentProject() {
+      const project = getCurrentProject();
+      if (!project) return;
+      state.projects = state.projects.filter(item => item.id !== project.id);
+      persistProjects();
+      state.currentProjectId = null;
+      state.nodes = [];
+      state.connections = [];
+      state.customBlocks = [];
+      state.view = 'projects';
+      wireInternals.clear();
+      state.wireTransit = {};
+      notify();
+    }
+
+    function deleteAllProjects() {
+      state.projects = [];
+      persistProjects();
+      if (state.currentProjectId) {
+        state.currentProjectId = null;
+        state.nodes = [];
+        state.connections = [];
+        state.customBlocks = [];
+        state.view = 'projects';
+      }
+      notify();
+    }
+
+    function exportAllProjects() {
+      const data = {
+        format: 'logic-builder-projects',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        projects: state.projects,
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `logic-builder-projects-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showToast('Projects exported', `${state.projects.length} project(s) saved to one JSON file.`);
+    }
+
+    function exportCurrentProject() {
+      const project = getCurrentProject();
+      if (!project) return;
+      const exportedProject = {
+        ...project,
+        name: project.name,
+        description: project.description,
+        nodes: state.nodes,
+        connections: state.connections,
+        customBlocks: state.customBlocks,
+        zoom: state.zoom,
+        lastModified: Date.now(),
+      };
+      const data = {
+        format: 'logic-builder-projects',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        projects: [exportedProject],
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const safeName = (exportedProject.name || 'project')
+        .trim()
+        .replace(/[^a-z0-9]+/gi, '-')
+        .replace(/^-|-$/g, '')
+        .toLowerCase() || 'project';
+      link.href = url;
+      link.download = `logic-builder-project-${safeName}-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showToast('Project exported', `${exportedProject.name} saved to one JSON file.`);
+    }
     /* ============================================================ EXPORT AND IMPORT */
     function getExportData() {
       return {
@@ -3337,10 +4338,9 @@
         customBlocks: state.customBlocks,
         wireDelay: state.wireDelay,
         zoom: state.zoom,
-        secretWireUnlocked: state.secretWireUnlocked,
       };
     }
-    
+
     function exportStateToJson() {
       const data = getExportData();
       const json = JSON.stringify(data, null, 2);
@@ -3356,7 +4356,7 @@
       URL.revokeObjectURL(url);
       showToast('Project exported', 'The JSON file has been downloaded.');
     }
-    
+
     function isValidImportedState(data) {
       return data
         && typeof data === 'object'
@@ -3364,10 +4364,10 @@
         && Array.isArray(data.connections)
         && Array.isArray(data.customBlocks);
     }
-    
+
     function importStateFromJson(file) {
       if (!file) return;
-    
+
       const reader = new FileReader();
       reader.onload = () => {
         try {
@@ -3375,7 +4375,7 @@
           if (!isValidImportedState(data)) {
             throw new Error('Invalid Logic Builder JSON');
           }
-    
+
           wireInternals.clear();
           state.nodes = data.nodes;
           state.connections = data.connections;
@@ -3388,17 +4388,13 @@
           state.selectionRect = null;
           state.wireTransit = {};
           document.body.style.cursor = '';
-    
+
           if (Number.isFinite(data.wireDelay)) {
             state.wireDelay = Math.max(0, Math.min(1000, Math.round(data.wireDelay)));
           }
           if (Number.isFinite(data.zoom)) {
             state.zoom = Math.max(0.25, Math.min(2.5, data.zoom));
           }
-          if (typeof data.secretWireUnlocked === 'boolean') {
-            state.secretWireUnlocked = data.secretWireUnlocked;
-          }
-    
           notify();
           showToast('Project imported', `${data.nodes.length} blocks and ${data.connections.length} wires loaded.`);
         } catch (error) {
@@ -3410,7 +4406,7 @@
       };
       reader.readAsText(file);
     }
-    
+
     function chooseImportJsonFile() {
       const input = document.createElement('input');
       input.type = 'file';
@@ -3774,14 +4770,14 @@
     const PUZZLE_PACKS_STORAGE_KEY = 'logicBuilderPuzzlePacks';
     const PUZZLE_PROGRESS_STORAGE_KEY = 'logicBuilderPuzzleProgress';
     const PUZZLE_SAVE_PREFIX = 'logicBuilderPuzzleSave:';
-    
+
     function normalizePuzzleSections(data) {
       if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
-    
+
       if (data.sections && typeof data.sections === 'object' && !Array.isArray(data.sections)) {
         data = data.sections;
       }
-    
+
       const sections = {};
       for (const [name, puzzles] of Object.entries(data)) {
         if (!Array.isArray(puzzles)) continue;
@@ -3790,20 +4786,20 @@
       }
       return sections;
     }
-    
+
     function normalizePuzzlePack(data, defaultName, id, isBuiltIn) {
       if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
-    
+
       let name = defaultName;
       if (typeof data.name === 'string' && data.name.trim()) name = data.name.trim();
       if (typeof data.title === 'string' && data.title.trim()) name = data.title.trim();
-    
+
       const sections = normalizePuzzleSections(data);
       if (!sections) return null;
-    
+
       return { id, name, sections, isBuiltIn: Boolean(isBuiltIn) };
     }
-    
+
     function readPuzzleStorage(key, fallback) {
       let raw;
       try {
@@ -3820,7 +4816,7 @@
         return fallback;
       }
     }
-    
+
     function loadPuzzleProgress() {
       const progress = readPuzzleStorage(PUZZLE_PROGRESS_STORAGE_KEY, {});
       state.puzzleProgress = progress && typeof progress === 'object' && !Array.isArray(progress) ? progress : {};
@@ -3828,17 +4824,17 @@
         showToast('Puzzle progress invalid', 'Saved puzzle status could not be loaded.', 'toast-error');
       }
     }
-    
+
     async function loadBuiltInPuzzlePacks() {
       let data = BUILT_IN_PUZZLE_DATA;
-    
+
       try {
         const response = await fetch('./puzzles.json', { cache: 'no-store' });
         if (response.ok) data = await response.json();
       } catch (error) {
         // Embedded data keeps the built-in pack available for file:// usage.
       }
-    
+
       const builtIn = normalizePuzzlePack(data, 'Built-in', 'builtin', true);
       const savedPacks = readPuzzleStorage(PUZZLE_PACKS_STORAGE_KEY, []);
       const expansions = Array.isArray(savedPacks)
@@ -3854,11 +4850,11 @@
       state.puzzlePackLoadStatus = builtIn || expansions.length ? 'loaded' : 'empty';
       notify();
     }
-    
+
     function getPuzzleId(pack, sectionName, index, puzzle) {
       return JSON.stringify([pack.id, sectionName, index, puzzle.title]);
     }
-    
+
     function findPuzzleById(id) {
       for (const pack of state.puzzlePacks) {
         for (const [sectionName, puzzles] of Object.entries(pack.sections)) {
@@ -3872,11 +4868,11 @@
       }
       return null;
     }
-    
+
     function puzzleSaveKey(id) {
       return PUZZLE_SAVE_PREFIX + encodeURIComponent(id);
     }
-    
+
     function getPuzzleBlockInventory(puzzle) {
       const blocks = puzzle.blocks;
       if (blocks === undefined || blocks === null) return {};
@@ -3891,7 +4887,7 @@
         return inventory;
       }
       if (typeof blocks !== 'object') return null;
-    
+
       const inventory = {};
       for (const [kind, count] of Object.entries(blocks)) {
         const normalizedKind = kind.toUpperCase();
@@ -3903,7 +4899,7 @@
       }
       return inventory;
     }
-    
+
     function getPuzzleBlockRemaining(kind) {
       if (!state.currentPuzzle) return Infinity;
       const allowed = state.currentPuzzle.blockInventory[kind];
@@ -3912,7 +4908,7 @@
       const used = state.nodes.filter(node => node.kind === kind).length;
       return Math.max(0, allowed - used);
     }
-    
+
     function savePuzzleCanvas() {
       if (!state.currentPuzzleId) return;
       const data = { nodes: state.nodes, connections: state.connections };
@@ -3922,20 +4918,20 @@
         showToast('Puzzle save failed', 'Your puzzle canvas could not be saved to local storage.', 'toast-error');
       }
     }
-    
+
     function openPuzzle(id) {
       const entry = findPuzzleById(id);
       if (!entry) {
         showToast('Puzzle unavailable', 'This puzzle could not be found in the loaded packs.', 'toast-error');
         return;
       }
-    
+
       const blockInventory = getPuzzleBlockInventory(entry.puzzle);
       if (!blockInventory) {
         showToast('Invalid puzzle', 'The puzzle block inventory must map supported gate names to non-negative counts.', 'toast-error');
         return;
       }
-    
+
       state.sandboxSnapshot = {
         nodes: state.nodes,
         connections: state.connections,
@@ -3962,7 +4958,7 @@
       notify();
       showPuzzleTruthTableWindow();
     }
-    
+
     function leavePuzzle(returnToPuzzles) {
       if (!state.currentPuzzle) return;
       const truthTableWindow = document.getElementById('puzzleTruthTableWindow');
@@ -3982,7 +4978,7 @@
       state.view = returnToPuzzles === false ? 'menu' : 'puzzles';
       notify();
     }
-    
+
     function persistPuzzleProgress() {
       try {
         localStorage.setItem(PUZZLE_PROGRESS_STORAGE_KEY, JSON.stringify(state.puzzleProgress));
@@ -3992,7 +4988,7 @@
         return false;
       }
     }
-    
+
     function exportPuzzleProgressToJson() {
       let url;
       try {
@@ -4005,7 +5001,7 @@
           if (!isPuzzleCanvasSave(save)) throw new Error('Invalid saved puzzle canvas');
           canvases[puzzleId] = save;
         }
-    
+
         const data = {
           format: 'logic-builder-puzzle-progress',
           version: 1,
@@ -4028,12 +5024,12 @@
         if (url) URL.revokeObjectURL(url);
       }
     }
-    
+
     function isPuzzleCanvasSave(save) {
       return save && typeof save === 'object' && !Array.isArray(save)
         && Array.isArray(save.nodes) && Array.isArray(save.connections);
     }
-    
+
     function isPuzzleProgressBackup(data) {
       if (!data || typeof data !== 'object' || Array.isArray(data)
         || data.format !== 'logic-builder-puzzle-progress'
@@ -4045,7 +5041,7 @@
       return Object.entries(data.progress).every(([id, solved]) => id.length > 0 && typeof solved === 'boolean')
         && Object.entries(data.canvases).every(([id, save]) => id.length > 0 && isPuzzleCanvasSave(save));
     }
-    
+
     function importPuzzleProgressFromJson(file) {
       if (!file) return;
       const reader = new FileReader();
@@ -4068,20 +5064,20 @@
       };
       reader.readAsText(file);
     }
-    
+
     function applyPuzzleProgressImport(data) {
       const mergedProgress = Object.assign(Object.create(null), state.puzzleProgress);
       for (const [id, solved] of Object.entries(data.progress)) {
         if (solved) mergedProgress[id] = true;
         else delete mergedProgress[id];
       }
-    
+
       const updates = new Map();
       for (const [id, save] of Object.entries(data.canvases)) {
         updates.set(puzzleSaveKey(id), JSON.stringify(save));
       }
       updates.set(PUZZLE_PROGRESS_STORAGE_KEY, JSON.stringify(mergedProgress));
-    
+
       const previousValues = new Map();
       try {
         for (const key of updates.keys()) previousValues.set(key, localStorage.getItem(key));
@@ -4105,7 +5101,7 @@
         );
         return;
       }
-    
+
       state.puzzleProgress = mergedProgress;
       notify();
       showToast(
@@ -4113,7 +5109,7 @@
         `${Object.values(data.progress).filter(Boolean).length} solved status(es) and ${Object.keys(data.canvases).length} canvas(es) merged.`
       );
     }
-    
+
     function choosePuzzleProgressImportFile() {
       const input = document.createElement('input');
       input.type = 'file';
@@ -4126,7 +5122,7 @@
       input.click();
       input.remove();
     }
-    
+
     function verifyCurrentPuzzle() {
       const entry = state.currentPuzzle;
       if (!entry) return;
@@ -4141,7 +5137,7 @@
         );
         return;
       }
-    
+
       if (!Array.isArray(puzzle.truth_table) || puzzle.truth_table.some(row =>
         !Array.isArray(row) || row.length !== inputs.length + outputs.length
         || row.some(value => value !== 0 && value !== 1 && value !== false && value !== true)
@@ -4149,7 +5145,7 @@
         showToast('Invalid puzzle', 'The puzzle truth table does not match its input and output counts.', 'toast-error');
         return;
       }
-    
+
       const hasSequentialNames = nodes => nodes.every(node =>
         /^\d+$/.test(node.name || '')
         && node.name === String(Number(node.name))
@@ -4165,7 +5161,7 @@
       if (!allNodesNumbered) {
         showToast('Default terminal order used', 'Name toggles and lamps 0 to n to choose their truth-table order.');
       }
-    
+
       const currentTable = puzzle.truth_table.map(row => {
         const overrides = new Map(inputNodes.map((node, index) => [node.id, Boolean(row[index])]));
         const result = evaluateGraph(state.nodes, state.connections, overrides, state.customBlocks);
@@ -4181,7 +5177,7 @@
       );
       showPuzzleResult(puzzle, currentTable, passed);
     }
-    
+
     function showPuzzleResult(puzzle, currentTable, passed) {
       if (passed) {
         state.puzzleProgress[state.currentPuzzleId] = true;
@@ -4220,10 +5216,10 @@
         if (passed) leavePuzzle();
       };
     }
-    
+
     function loadCustomPuzzlePack(file) {
       if (!file) return;
-    
+
       const reader = new FileReader();
       reader.onload = () => {
         try {
@@ -4232,7 +5228,7 @@
           const pack = normalizePuzzlePack(data, fallbackName, null, false);
           if (!pack) throw new Error('Invalid puzzle pack');
           pack.id = `expansion:${encodeURIComponent(pack.name)}`;
-    
+
           const duplicateIndex = state.puzzlePacks.findIndex(existing => existing.id === pack.id);
           if (duplicateIndex >= 0) state.puzzlePacks[duplicateIndex] = pack;
           else state.puzzlePacks = [...state.puzzlePacks, pack];
@@ -4255,7 +5251,7 @@
       };
       reader.readAsText(file);
     }
-    
+
     function removePuzzleExpansions(deleteSaves) {
       const expansions = state.puzzlePacks.filter(pack => !pack.isBuiltIn);
       try {
@@ -4288,7 +5284,7 @@
       notify();
       showToast('Expansions removed', deleteSaves ? 'Expansion packs and their puzzle saves were deleted.' : 'Expansion packs were removed; their puzzle saves were kept.');
     }
-    
+
     function resetAllPuzzleProgress() {
       const previousProgress = state.puzzleProgress;
       state.puzzleProgress = {};
@@ -4312,7 +5308,7 @@
       notify();
       showToast('Puzzle progress reset', 'Solved status and saved canvases for all puzzles were cleared.');
     }
-    
+
     function chooseCustomPuzzlePack() {
       const input = document.createElement('input');
       input.type = 'file';
@@ -4337,6 +5333,7 @@
       setupPendingWireTracking();
       loadStateFromLocalStorage();
       loadPuzzleProgress();
+      loadProjects();
       initWasmGateEngine();
       renderAll();
       subscribe(() => {
@@ -4347,7 +5344,7 @@
       });
       loadBuiltInPuzzlePacks();
     }
-    
+
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', init);
     } else {

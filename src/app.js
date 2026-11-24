@@ -13,6 +13,7 @@
 {{scripts/main_render.js}}
 {{scripts/wire_delay_raf_loop.js}}
 {{scripts/save_and_load.js}}
+{{scripts/projects.js}}
 {{scripts/export_and_import.js}}
 {{scripts/puzzle_packs.js}}
 {{scripts/init.js}}

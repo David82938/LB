@@ -114,6 +114,16 @@ function renderCanvas() {
   // Render wires and nodes from the same sequential simulation step.
   renderWires(evalResult);
 
+  if (state.editorSelectionRect) {
+    const rect = state.editorSelectionRect;
+    const selection = el('div', 'editor-selection-box');
+    selection.style.left = `${rect.x}px`;
+    selection.style.top = `${rect.y}px`;
+    selection.style.width = `${rect.w}px`;
+    selection.style.height = `${rect.h}px`;
+    world.appendChild(selection);
+  }
+
   // Render nodes
   state.nodes.forEach(n => {
     const nodeEl = renderNode(n, evalResult);
@@ -129,7 +139,7 @@ function renderCanvas() {
       ? 'Drag gates from the sidebar to define this block\'s internal logic. Drag pins into empty space to create <span class="hl">toggles</span> (block inputs) and <span class="hl">lamps</span> (block outputs). Hit <span class="hl">Done</span> when finished.'
       : (state.currentPuzzle
         ? 'Drag the available gates from the left sidebar to build your circuit. Add toggles and lamps, then hit <span class="hl">Verify</span> to check it against the truth table.'
-        : 'Drag an <span class="hl">AND</span> or <span class="hl">NOT</span> gate from the left sidebar to get started. Drag output pins into empty space to create lamps; drag input pins into empty space to create toggles. Hit <span class="hl">Build</span> to wrap the whole circuit into a reusable block.')
+        : `Drag ${state.currentProjectId ? 'a gate' : 'an <span class="hl">AND</span> or <span class="hl">NOT</span> gate'} from the left sidebar to get started. Drag output pins into empty space to create lamps; drag input pins into empty space to create toggles. Hit <span class="hl">Build</span> to wrap the whole circuit into a reusable block.`)
     }</div></div>`;
   } else {
     emptyState.classList.add('hidden');
@@ -206,7 +216,10 @@ function renderWires(evalResult) {
         ? ((evalResult.nodeOutputs[pendingFrom.nodeId] && evalResult.nodeOutputs[pendingFrom.nodeId][pendingFrom.pinId]) || false)
         : ((evalResult.nodeInputs[pendingFrom.nodeId] && evalResult.nodeInputs[pendingFrom.nodeId][pendingFrom.pinId]) || false);
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', wirePath(start, pendingCursor, pendingFrom.nodeId, null));
+      const previewPath = pendingFrom.kind === 'input'
+        ? wirePath(pendingCursor, start, null, pendingFrom.nodeId)
+        : wirePath(start, pendingCursor, pendingFrom.nodeId, null);
+      path.setAttribute('d', previewPath);
       path.setAttribute('stroke', pendingIsPowered ? 'var(--lb-wire-hot)' : 'var(--lb-wire-cold)');
       path.setAttribute('stroke-width', '2.5');
       path.setAttribute('stroke-dasharray', '6 4');
@@ -218,7 +231,7 @@ function renderWires(evalResult) {
 }
 
 function renderSimulationFrame() {
-  if (state.view !== 'sandbox' && state.view !== 'puzzle') return;
+  if (state.view !== 'sandbox' && state.view !== 'puzzle' && state.view !== 'project') return;
   const world = document.getElementById('world');
   if (!world) return;
 
@@ -292,7 +305,7 @@ function renderSecretWireNode(node, evalResult) {
   };
   const w = nodeWidth(node);
   const h = nodeHeight(node);
-  const nodeEl = el('div', 'node');
+  const nodeEl = el('div', 'node' + (state.selectedNodeIds.has(node.id) ? ' selected' : ''));
   nodeEl.style.left = node.position.x + 'px';
   nodeEl.style.top = node.position.y + 'px';
   nodeEl.style.width = w + 'px';
@@ -398,7 +411,9 @@ function renderNode(node, evalResult) {
     headerLabel = def ? def.name : (node.name || 'Block');
   }
 
-  const nodeEl = el('div', 'node' + (draggingOverSidebarNode === node.id ? ' dragging-over-sidebar' : ''));
+  const nodeEl = el('div', 'node'
+    + (draggingOverSidebarNode === node.id ? ' dragging-over-sidebar' : '')
+    + (state.selectedNodeIds.has(node.id) ? ' selected' : ''));
   nodeEl.style.left = node.position.x + 'px';
   nodeEl.style.top = node.position.y + 'px';
   nodeEl.style.width = w + 'px';

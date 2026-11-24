@@ -4,6 +4,10 @@ function saveStateToLocalStorage() {
     savePuzzleCanvas();
     return;
   }
+  if (state.view === 'project' && state.currentProjectId) {
+    saveCurrentProject();
+    return;
+  }
   const data = {
     nodes: state.nodes,
     connections: state.connections,

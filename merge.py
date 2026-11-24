@@ -80,5 +80,4 @@ rendered = replace_placeholders(template)
 out_dir = root / 'docs'
 out_dir.mkdir(exist_ok=True)
 out_dir.joinpath('index.html').write_text(rendered, encoding='utf-8')
-shutil.copy2(src_dir / 'puzzles.json', out_dir / 'puzzles.json')
 print(f'Wrote {out_dir / "index.html"}')
